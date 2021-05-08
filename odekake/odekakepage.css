@@ -6,3 +6,7 @@ body{
     background-color: coral;
     color: white;
 }
+#topimg{
+    margin-top: 1em;
+    width: 40%;
+}
