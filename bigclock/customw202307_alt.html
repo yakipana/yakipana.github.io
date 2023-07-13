@@ -1,0 +1,79 @@
+
+<html>
+<head>
+<meta charset="utf-8" />
+<title></title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=M+PLUS+1p:wght@500;700&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+<style>
+  *{
+    margin: 0;
+    padding: 0;
+  }
+  
+  #date{
+    color: #000000;
+    font-size: 115px;
+    line-height: 1;
+    font-family:Arial;
+    font-weight: 500;
+    padding-bottom: 20px;
+    margin-left: 65px;
+    opacity: 100%;
+  }
+
+  #tsuki{
+    color: #000000;
+    padding-top: 15px;
+    font-size: 45px;
+    line-height: 1;
+    font-family:Arial;
+    font-weight: 500;
+    margin-left: 70px;
+    opacity: 100%;
+  }
+  
+  #view{
+    margin-top: 30px;
+    width: 370px;
+    height: 180px;
+    background-color: rgba(255, 55, 55, 0.489);
+    border-top-right-radius:18px;
+    border-bottom-right-radius:18px;
+    opacity: 100%;
+  }
+  </style>
+</head>
+<body>
+
+  <div id="view">
+    <p id="tsuki" />0000/00/00</p>
+    <p id="date" />00:00</p>
+  </div>
+
+  <script language="JavaScript">
+  var yyyymmddhhmiss = function() {
+    var date = new Date();
+    var yyyy = date.getFullYear();
+    var mm = toDoubleDigits(date.getMonth() + 1);
+    var dd = toDoubleDigits(date.getDate());
+    var hh = toDoubleDigits(date.getHours());
+    var mi = toDoubleDigits(date.getMinutes());
+    var ss = toDoubleDigits(date.getSeconds())
+    var element = document.getElementById("date");
+    element.innerHTML =  hh + ':' + mi;
+    var element = document.getElementById("tsuki");
+    element.innerHTML =  yyyy + '/' + mm + '/' + dd; 
+  };
+  var toDoubleDigits = function(num) {
+    num += "";
+    if (num.length === 1) {
+      num = "0" + num;
+    }
+   return num;
+  };
+  setInterval(yyyymmddhhmiss, 100);
+  </script>
+</body>
+</html>
