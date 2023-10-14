@@ -1,0 +1,24 @@
+body {
+    background:rgba(243, 243, 243, 0.647)
+}
+#date{
+    user-select: none;
+    font-family: DIN Alternate;
+    letter-spacing: 5px;
+    padding-left: 4%;
+    color: rgba(0, 0, 0, 0.793);
+    font-size: 280px;
+    position: absolute;
+    bottom: -270px;
+}
+
+#tsuki{
+    user-select: none;
+    font-family: DIN Alternate;
+    letter-spacing: 5px;
+    padding-left: 4.3%;
+    color: rgba(0, 0, 0, 0.793);
+    font-size: 140px;
+    position: absolute;
+    bottom: 140px;
+}

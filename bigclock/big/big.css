@@ -1,0 +1,29 @@
+body {
+    background:linear-gradient(rgb(253, 127, 247),rgb(243, 100, 17));
+}
+#date1{
+    font-family: DIN Alternate;
+    padding-left: 9%;
+    color: rgba(255, 255, 255);
+    font-size: 650px;
+    position: absolute;
+    bottom: -130px;
+}
+
+#date2{
+    font-family: DIN Alternate;
+    padding-left: 9%;
+    color: rgba(255, 255, 255);
+    font-size: 650px;
+    position: absolute;
+    bottom: -650px;
+}
+
+#tsuki{
+    font-family: DIN Alternate;
+    padding-left: 4.3%;
+    color: rgba(255, 255, 255, 0.793);
+    font-size: 520px;
+    position: absolute;
+    bottom: 160px;
+}

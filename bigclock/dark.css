@@ -1,20 +1,27 @@
 body {
-    background:linear-gradient(rgb(253, 127, 247),rgb(243, 100, 17));
+    background:rgb(42, 42, 42)
+}
+#dl{
+    margin: 30px;
 }
 #date{
+    user-select: none;
     font-family: DIN Alternate;
+    letter-spacing: 5px;
     padding-left: 4%;
     color: rgba(255, 255, 255, 0.793);
-    font-size: 250px;
+    font-size: 280px;
     position: absolute;
-    bottom: -230px;
+    bottom: -270px;
 }
 
 #tsuki{
+    user-select: none;
     font-family: DIN Alternate;
+    letter-spacing: 5px;
     padding-left: 4.3%;
     color: rgba(255, 255, 255, 0.793);
-    font-size: 120px;
+    font-size: 140px;
     position: absolute;
-    bottom: 160px;
+    bottom: 140px;
 }

@@ -1,3 +1,6 @@
+// 0でライト、0でダーク
+var backgroundcolor = 0;
+
 var yyyymmddhhmiss = function() {
     var date = new Date();
     var yyyy = date.getFullYear();
@@ -19,3 +22,25 @@ var yyyymmddhhmiss = function() {
    return num;
   };
   setInterval(yyyymmddhhmiss, 100);
+
+  // bodyをクリックしたら作動
+  function colorswitch(){
+    if(backgroundcolor==0){
+      var ans01 = window.confirm("ダークモードに切り替えますか？");
+        if(ans01==true){
+          document.getElementById("colorsheet").href="dark.css";
+          backgroundcolor = 1;
+        }else if(ans01==false){
+          backgroundcolor = 0;
+        }
+    }else if(backgroundcolor==1){
+      var ans02 = window.confirm("ライトモードに切り替えますか？");
+        if(ans02==true){
+          document.getElementById("colorsheet").href="light.css";
+          backgroundcolor = 0;
+        }else if(ans02==false){
+          backgroundcolor = 1;
+        }
+    }
+
+  }
