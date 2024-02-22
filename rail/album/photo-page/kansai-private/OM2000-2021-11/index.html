@@ -1,0 +1,46 @@
+<html>
+    <head>
+        <title>鉄道写真のページ</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Kosugi&family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+        <link rel="stylesheet" href="../../../../style.css">
+        <script>
+            // 0が閉じた状態、1が開いた状態
+            var menu01 = 0;
+            function openmenu(){
+                if(menu01 == 0){
+                    document.getElementById("topmenu").style.display = "block";
+                    document.getElementById("menubutton01").textContent = "×閉じる"
+                    menu01 = 1;
+                    // 0だったら表示する動作をし、1を代入
+                }else if(menu01 == 1){
+                    document.getElementById("topmenu").style.display = "none";
+                    document.getElementById("menubutton01").textContent = "︙MENU"
+                    menu01 = 0;
+                    // 1だったら隠す動作をし、0を代入
+                }
+            }
+        </script>
+    </head>
+
+    <body onload="">
+        <a onclick="history.back()" class="topmenubuttons">◀ 戻る</a>
+        <center>
+            <h1>大阪モノレール2000系 黄色帯</h1>
+            <img id="railpic" src="th_railpic01.jpg">
+            <h3>撮影地：山田駅周辺</h3>
+            <h3>撮影日：2021-10-31</h3>
+            <h3>備考</h3>
+            <p>すぐそこに某宗教のでかい施設があって、一眼持ってると怪しまれないかピリピリしてました。</p>
+            <hr>
+            <p>撮影の際には、常に周囲の安全に注意し、鉄道の安全安定輸送に一切の影響を及ぼさないよう配慮しています。</p>
+            <h2>画像を引用する際は出典元を明記の上、Twitter等でご一報ください(事後連絡可)</h2>
+        </center>
+        <div id="endpoint">
+            <p id="endpointtxt01">Yakipana</p>
+            <p id="endpointtxt02">(C)2023 Yakipana</p>
+        </div>
+    </body>
+</html>

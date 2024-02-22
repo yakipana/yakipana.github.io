@@ -1,0 +1,36 @@
+<html>
+    <head>
+        <title>鉄道写真のページ</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Kosugi&family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+        <link rel="stylesheet" href="../../../style.css">
+        <script>
+            // 0が閉じた状態、1が開いた状態
+            var menu01 = 0;
+            function openmenu(){
+                if(menu01 == 0){
+                    document.getElementById("topmenu").style.display = "block";
+                    document.getElementById("menubutton01").textContent = "×閉じる"
+                    menu01 = 1;
+                    // 0だったら表示する動作をし、1を代入
+                }else if(menu01 == 1){
+                    document.getElementById("topmenu").style.display = "none";
+                    document.getElementById("menubutton01").textContent = "︙MENU"
+                    menu01 = 0;
+                    // 1だったら隠す動作をし、0を代入
+                }
+            }
+        </script>
+    </head>
+
+    <body onload="">
+        <center>
+            <br>
+            <h1>ダミーページ</h1>
+            <p>仮ページです。下のボタンをクリックすると戻ります。</p>
+            <a onclick="history.back()">＜戻る＞</a>
+        </center>
+    </body>
+</html>

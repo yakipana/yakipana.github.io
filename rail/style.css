@@ -1,0 +1,278 @@
+body{
+    background-color: rgb(243, 243, 243);
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    cursor: default;
+}
+a{
+    cursor: default;
+    text-decoration: none;
+}
+a:hover{
+    opacity: 0.5;
+    transition: 300ms;
+}
+img{
+    -webkit-user-drag: none;
+}
+/* PC用 */
+@media screen and (min-width: 700px) {
+    #menubutton01{
+        font-size:30px;
+        padding: 10px;
+        user-select: none;
+        transition: 300ms;
+    }
+    #mobile01{
+        display: none;
+    }
+    #top01{
+    height: 14%;
+    padding-top: 20px;
+    padding-bottom: 30px;
+    animation-name: topanime;
+    animation-duration: 1s;
+    }
+    @keyframes topanime{
+        0%{
+            opacity: 0;
+        }
+        60%{
+            opacity: 0.7;
+        }
+        100%{
+            opacity: 1;
+        }
+    }
+    #indexbuttons{
+    margin-top:20px;
+    width: 35%;
+    transition: 400ms;
+    animation-name: indexroadup;
+    animation-duration: 1s;
+    }
+    #update01{
+        width: 50%;
+        height: 25%;
+        overflow: scroll;
+        border: 3px solid black;
+        border-radius: 20px;
+        margin-top: 20px;
+        padding: 0.9%;
+        animation-name: indexroadup;
+        animation-duration: 1s;
+    }
+    @keyframes indexroadup{
+        0%{
+            opacity: 0;
+            margin-top:50px
+        }
+        100%{
+            opacity: 1;
+            margin-top: 20px;
+        }
+    }
+    #endpoint{
+    background-color: rgb(48, 48, 48);
+    margin-top:100px;
+    width: 100%;
+    height: 100px;
+    }
+    #endpointtxt01{
+        font-size:30px;
+        color: white;
+        padding-left: 20px;
+        padding-top: 10px;
+        margin-bottom: -10px;
+    }
+    #endpointtxt02{
+        color: white;
+        padding-left: 20px;
+    }
+    #topmenu{
+        display: none;
+        position: absolute;
+        font-size: 30px;
+        padding-left: 20px;
+        padding-top: 10px;
+        padding-right: 10px;
+        padding-bottom: 18px;
+        background-color: rgb(235, 235, 235);
+    }
+    .topmenubuttons{
+        font-size: 30px;
+        margin: 10px;
+        text-decoration: none;
+        color:black;
+    }
+    #menubox{
+        background-color: rgb(235, 235, 235);
+        margin-top: 20px;
+
+    }
+    #menubox2{
+        background-color: rgb(235, 235, 235);
+        margin-top: 20px;
+
+    }
+    .album-menu{
+        width: 25%;
+        margin-top: 10px;
+        margin-left: 3px;
+        margin-right: 3px;
+        margin-bottom: 6px;
+    }
+    .album-menu2{
+        width: 25%;
+        margin-top: 0px;
+        margin-left: 3px;
+        margin-right: 3px;
+        margin-bottom: 6px;
+    }
+    #railpic{
+        width: 60%;
+    }
+    #bunrui{
+        margin: 0 auto;
+        width: 50%;
+        height: 25%;
+        overflow: scroll;
+        border: 3px solid black;
+        border-radius: 20px;
+        margin-top: 20px;
+        padding: 0.9%;
+        animation-name: indexroadup;
+        animation-duration: 1s;
+        -ms-overflow-style: none;
+    }
+    #bunrui::-webkit-scrollbar{
+        display: none;
+    }
+}
+
+/* モバイル用 */
+@media screen and (max-width: 700px) {
+    #menubutton01{
+        font-size:30px;
+        padding: 10px;
+        user-select: none;
+        transition: 300ms;
+    }
+    #top01{
+    width: 80%;
+    padding-top: 20px;
+    padding-bottom: 30px;
+    animation-name: topanime;
+    animation-duration: 1s;
+    }
+    @keyframes topanime{
+        0%{
+            opacity: 0;
+        }
+        60%{
+            opacity: 0.7;
+        }
+        100%{
+            opacity: 1;
+        }
+    }
+    #indexbuttons{
+        margin-top:20px;
+    width: 85%;
+    transition: 400ms;
+    animation-duration: 1s;
+    }
+    #update01{
+        width: 90%;
+        height: 25%;
+        overflow: scroll;
+        border: 3px solid black;
+        border-radius: 20px;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        margin-top: 0px;
+        padding: 1%;
+        animation-name: indexroadup;
+        animation-duration: 1s;
+    }
+    @keyframes indexroadup{
+        0%{
+            opacity: 0;
+            margin-top:30px
+        }
+        100%{
+            opacity: 1;
+            margin-top: 00px;
+        }
+    }
+    #update01::-webkit-scrollbar{
+        display: none;
+    }
+    #endpoint{
+    margin-top:30px;
+    width: 100%;
+    height: 80px;
+    }
+    #endpointtxt01{
+    display: none;
+    }
+    #endpointtxt02{
+    color: rgb(0, 0, 0);
+    text-align: center;
+    font-size: 20px;
+    }
+    #topmenu{
+        display: none;
+        font-size: 30px;
+        padding-left: -10px;
+        padding-top: 10px;
+        padding-right: 10px;
+        padding-bottom: 20px;
+        background-color: rgb(235, 235, 235);
+    }
+    .topmenubuttons{
+        font-size: 30px;
+        margin: 10px;
+        text-decoration: none;
+        color:black;
+    }
+    #menubox{
+        width: 100%;
+        margin-top: 20px;
+        position: relative;
+    }
+    .album-menu{
+        margin-top: 10px;
+        width: 90%;
+    }
+    .album-menu2{
+        margin-top: 10px;
+        width: 90%;
+    }
+    #railpic{
+        width: 100%;
+    }
+    #menubox2{
+        background-color: rgb(235, 235, 235);
+        margin-top: 20px;
+
+    }
+    #bunrui{
+        margin: 0 auto;
+        text-align: center;
+        width: 90%;
+        height: 25%;
+        overflow: scroll;
+        border: 3px solid black;
+        border-radius: 20px;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        margin-top: 0px;
+        padding: 1%;
+        animation-name: indexroadup;
+        animation-duration: 1s;
+    }
+    #bunrui::-webkit-scrollbar{
+        display: none;
+    }

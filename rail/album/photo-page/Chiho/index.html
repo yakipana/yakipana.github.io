@@ -1,0 +1,59 @@
+<html>
+    <head>
+        <title>鉄道写真のページ</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Kosugi&family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+        <link rel="stylesheet" href="../../../style.css">
+        <script>
+            // 0が閉じた状態、1が開いた状態
+            var menu01 = 0;
+            function openmenu(){
+                if(menu01 == 0){
+                    document.getElementById("topmenu").style.display = "block";
+                    document.getElementById("menubutton01").textContent = "×閉じる"
+                    menu01 = 1;
+                    // 0だったら表示する動作をし、1を代入
+                }else if(menu01 == 1){
+                    document.getElementById("topmenu").style.display = "none";
+                    document.getElementById("menubutton01").textContent = "︙MENU"
+                    menu01 = 0;
+                    // 1だったら隠す動作をし、0を代入
+                }
+            }
+        </script>
+    </head>
+
+    <body onload="">
+        <a id="menubutton01" onclick="openmenu()">︙MENU</a>
+        <br>
+        <div id="topmenu">
+            <a href="../../../index.html" class="topmenubuttons">ホーム</a>
+            <br>
+            <a href="../../index.html" class="topmenubuttons">アルバム</a>
+            <br>
+            <a href="https://twitter.com/yakipana" class="topmenubuttons">X(Twitter)</a>
+        </div>
+        <center>
+            <h1>地方私鉄・第三セクター</h1>
+            <p>大手私鉄・準大手私鉄に分類されていない、地方のローカル私鉄路線・第三セクター路線の写真を分類しています。</p>
+            <p>Ctrl+F、Cmd+F等のページ内検索を活用すると便利です。</p>
+            <div id="menubox2">
+                    <a href="dummy.html">富山地方鉄道　岩瀬浜線　岩瀬浜駅　2020-00-00</a>
+                    <br>
+                    <a href="dummy.html">四日市あすなろう鉄道　内部線　内部駅　2020-00-00</a>
+                    <br>
+                <!-- リンク６つごとにトップに戻るを追加 -->
+                    <a href="#menubutton01">＜トップに戻る＞</a>
+            </div>
+            <br>
+            <p>撮影の際には、常に周囲の安全に注意し、鉄道の安全安定輸送に一切の影響を及ぼさないよう配慮しています。</p>
+
+        </center>
+        <div id="endpoint">
+            <p id="endpointtxt01">Yakipana</p>
+            <p id="endpointtxt02">(C)2023 Yakipana</p>
+        </div>
+    </body>
+</html>
