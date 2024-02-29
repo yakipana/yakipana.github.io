@@ -1,0 +1,86 @@
+            /* PC用 */
+            @media screen and (min-width: 700px){
+                body{
+                    background-color: white;
+                    font-family: Noto Sans JP, sans-serif;
+                    font-size: 18px;
+                }
+                #title{
+                    padding-left: 15px;
+                    font-size: 50px;
+                    font-family: Noto Sans JP, Helvetica, Arial, sans-serif;
+                    user-select: none;
+                    margin-bottom: -7px;
+                }
+                #list01{
+                    padding-left: 15px;
+                }
+                #lastupdate{
+                    padding-left: 15px;
+                    font-family: DotGothic16, sans-serif ;
+                    margin-bottom: -4px;
+                }
+                #koumoku{
+                    font-size:30px;
+                    font-family: DotGothic16, sans-serif;
+                    margin-bottom:1px;
+                    user-select: none;
+                }
+                a{
+                    font-size:20px;
+                    text-decoration: none;
+                }
+                #footer{
+                    background-color: rgb(242, 242, 242);
+                    text-align: center;
+                }
+                #footertxt01{
+                    font-size: 20px;
+                    user-select: none;
+                    margin-bottom: 0px;
+                }
+            }
+            /* モバイル用 */
+            @media screen and (max-width: 700px){
+                body{
+                    background-color: white;
+                    font-family: Noto Sans JP, sans-serif;
+                    font-size: 19px;
+                }
+                #title{
+                    margin-top: 30px;
+                    text-align: center;
+                    font-size: 180%;
+                    font-family: Noto Sans JP, Helvetica, Arial, sans-serif;
+                    user-select: none;
+                    margin-bottom: -7px;
+                }
+                #list01{
+                
+                }
+                #lastupdate{
+                    text-align: center;
+                    font-family: DotGothic16, sans-serif ;
+                    margin-bottom: -4px;
+                }
+                #koumoku{
+                    text-align: center;
+                    font-size:27px;
+                    font-family: DotGothic16, sans-serif;
+                    margin-bottom:1px;
+                    user-select: none;
+                }
+                a{
+                    font-size:19px;
+                    text-decoration: none;
+                }
+                #footer{
+                    background-color: rgb(242, 242, 242);
+                    text-align: center;
+                }
+                #footertxt01{
+                    font-size: 20px;
+                    user-select: none;
+                    margin-bottom: 0px;
+                }
+            }
