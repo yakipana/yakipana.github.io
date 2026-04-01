@@ -316,12 +316,59 @@
         .image-wrapper { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background-color: #000; }
         .image-wrapper img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* グリッドメニュー（2段維持） */
-        .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px; background-color: #2C2F33; margin: 15px; border-radius: 16px; }
+        /* グリッドメニュー */
+        .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px; background-color: #2C2F33; margin: 15px; margin-bottom:3px; border-radius: 16px; }
         .grid-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #eee; font-size: 12px; cursor: pointer; }
         .icon-box { width: 50px; height: 50px; background-color: #40444B; border-radius: 12px; display: flex; justify-content: center; align-items: center; margin-bottom: 8px; font-size: 24px; }
 
-        .news-container { flex-grow: 1; padding: 0 15px 20px 15px; display: flex; flex-direction: column; }
+        /* --- 追加：スライドショーのスタイル --- */
+        .slider-section {
+            width: 100%;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .slider-container {
+            width: 100%;
+            aspect-ratio: 21 / 9; /* 指定のサイズ比 */
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: -15px;
+        }
+        .slider-container::-webkit-scrollbar { display: none; }
+        
+        .slide-link {
+            flex: 0 0 100%;
+            width: 100%;
+            height: 100%;
+            scroll-snap-align: start;
+        }
+        .slide-link img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        /* インジケーター（点） */
+        .slider-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            position: absolute;
+            bottom: 8px;
+            width: 100%;
+        }
+        .dot {
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .dot.active { background: #ffffff00; width: 12px; border-radius: 4px; }
+
+        .news-container { flex-grow: 1; padding: 0px 15px 20px 15px; display: flex; flex-direction: column; }
         .news-frame { width: 100%; height: 400px; border: none; border-radius: 12px; background-color: transparent; }
         .footer-info { text-align: center; font-size: 12px; color: #888; padding: 20px 0 40px 0; }
 
@@ -349,15 +396,27 @@
     </header>
 
     <div class="container">
-        <div class="image-wrapper"><img src="01.png" alt="Kuromaru"></div>
+        <!-- <div class="image-wrapper"><img src="01.png" alt="Kuromaru"></div> -->
 
+        <div class="slider-section">
+            <div class="slider-container" id="slider">
+                <a href="#" class="slide-link"><img src="slide/スライド1.png" alt="Slide 1"></a>
+                <a href="#" class="slide-link"><img src="slide/スライド2.png" alt="Slide 2"></a>
+                <a href="#" class="slide-link"><img src="slide/スライド3.png" alt="Slide 3"></a>
+            </div>
+            <div class="slider-dots" id="dotsContainer">
+                <div class="dot active"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+        </div>
+        
         <div class="app-grid">
+            <a href="https://kuromaru.game-info.wiki/d/%a5%b5%a1%bc%a5%d0%a1%bc%a4%ce%c6%fe%a4%ea%ca%fd" class="grid-item"><div class="icon-box" style="color: #ff8000;"><i class="fas fa-sign-in-alt"></i></div><span>参加方法</span></a>
             <a href="map.html" class="grid-item"><div class="icon-box" style="color: #4cd137;"><i class="fas fa-map-marked-alt"></i></div><span>マップ</span></a>
-            <div class="grid-item" id="discordLink"><div class="icon-box" style="color: #7289da;"><i class="fab fa-discord"></i></div><span>Discord</span></div>
             <a href="template.html" class="grid-item"><div class="icon-box" style="color: #fbc531;"><i class="fas fa-book"></i></div><span>ルール</span></a>
+            <div class="grid-item" id="discordLink"><div class="icon-box" style="color: #7289da;"><i class="fab fa-discord"></i></div><span>Discord</span></div>
             <a href="#" class="grid-item"><div class="icon-box" style="color: #ffffff;"><i class="fab fa-x-twitter"></i></div><span>公式X</span></a>
-            
-            <a href="#" class="grid-item"><div class="icon-box" style="color: #888;"><i class="fas fa-plus"></i></div><span>追加中</span></a>
             <a href="#" class="grid-item"><div class="icon-box" style="color: #888;"><i class="fas fa-plus"></i></div><span>追加中</span></a>
             <a href="#" class="grid-item"><div class="icon-box" style="color: #888;"><i class="fas fa-plus"></i></div><span>追加中</span></a>
             <a href="#" class="grid-item"><div class="icon-box" style="color: #888;"><i class="fas fa-plus"></i></div><span>追加中</span></a>
@@ -408,6 +467,48 @@
             modal.style.display = 'none';
         });
         window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+
+        /* --- スライドショー自動再生 & インジケーター制御 --- */
+        const slider = document.getElementById('slider');
+        const dots = document.querySelectorAll('.dot');
+        let currentIndex = 0;
+        const slideCount = dots.length;
+
+        // 自動スライド
+        function autoSlide() {
+            currentIndex = (currentIndex + 1) % slideCount;
+            updateSlider();
+        }
+
+        function updateSlider() {
+            const scrollAmount = slider.clientWidth * currentIndex;
+            slider.scrollTo({ left: scrollAmount, behavior: 'smooth' });
+            updateDots();
+        }
+
+        function updateDots() {
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentIndex);
+            });
+        }
+
+        let slideInterval = setInterval(autoSlide, 4000); // 4秒ごとに切り替え
+
+        // 手動スクロール検知（インジケーター同期）
+        slider.addEventListener('scroll', () => {
+            const index = Math.round(slider.scrollLeft / slider.clientWidth);
+            if (index !== currentIndex) {
+                currentIndex = index;
+                updateDots();
+            }
+        });
+
+        // タッチ中は自動再生を一時停止
+        slider.addEventListener('touchstart', () => clearInterval(slideInterval));
+        slider.addEventListener('touchend', () => {
+            clearInterval(slideInterval);
+            slideInterval = setInterval(autoSlide, 4000);
+        });
     </script>
 </body>
 </html>

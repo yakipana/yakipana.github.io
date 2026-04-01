@@ -2,149 +2,104 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sub Page | Kuromaru</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>How to Join | Kuromaru</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
-
     <style>
-        * { -ms-overflow-style: none; scrollbar-width: none; box-sizing: border-box; }
+        /* 基本設定・ズーム禁止 */
+        * { -ms-overflow-style: none; scrollbar-width: none; box-sizing: border-box; touch-action: manipulation; }
         *::-webkit-scrollbar { display: none; }
 
-        body {
-            margin: 0; padding: 0;
-            background-color: #40444B;
-            color: #ffffff;
-            font-family: "BIZ UDPGothic", sans-serif;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            overflow-x: hidden;
-            padding-top: 56px; 
+        body { 
+            margin: 0; padding: 0; 
+            background-color: #23272A; /* PC表示時の背景を少し暗めにして中身を際立たせる */
+            color: #ffffff; 
+            font-family: "BIZ UDPGothic", sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            height: 100vh; 
+            overflow: hidden; 
         }
 
-        .container {
-            width: 100%;
-            max-width: 480px;
-            min-height: 100vh;
-            background-color: #40444B;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
+        /* モバイルサイズのコンテナ */
+        .container { 
+            width: 100%; 
+            max-width: 480px; /* PCでもこの幅に固定されます */
+            height: 100vh;
+            background-color: #40444B; 
+            display: flex; 
+            flex-direction: column; 
+            position: relative;
+            box-shadow: 0 0 40px rgba(0,0,0,0.5); /* PCで見ると浮き上がって見える影 */
         }
 
-        .header {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            max-width: 480px;
-            height: 56px;
-            background-color: #2C2F33;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 5px;
+        /* ヘッダー設定 */
+        .header { 
+            width: 100%; 
+            height: 56px; 
+            background-color: #2C2F33; 
+            z-index: 1000; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 5px; 
         }
 
-        .header-title {
-            font-size: 16px;
-            font-weight: bold;
-            flex-grow: 1;
-            text-align: center;
+        .header-title { font-size: 15px; font-weight: bold; flex-grow: 1; text-align: center; }
+
+        .nav-icon-btn { 
+            background: none; border: none; color: #fff; 
+            font-size: 20px; cursor: pointer; 
+            width: 44px; height: 44px; 
+            display: flex; justify-content: center; align-items: center; 
         }
 
-        .nav-icon-btn {
-            background: none; border: none; color: #fff;
-            font-size: 20px; cursor: pointer;
-            width: 44px; height: 44px;
-            display: flex; justify-content: center; align-items: center;
+        /* Wiki埋め込みエリア（iframe） */
+        .iframe-wrapper { 
+            flex-grow: 1; 
+            width: 100%; 
+            background-color: #ffffff; 
+            position: relative;
+            overflow: hidden;
         }
 
-        .menu-list {
-            position: absolute;
-            top: 56px; left: 0;
-            width: 100%;
-            background-color: #2C2F33;
-            display: flex;
-            flex-direction: column;
-            z-index: 999;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-20px);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-        .menu-list.show { opacity: 1; visibility: visible; transform: translateY(0); }
-        .menu-item {
-            display: flex; align-items: center;
-            padding: 15px 20px; text-decoration: none;
-            color: #eee; font-size: 14px; border-bottom: 1px solid #40444B;
+        .iframe-frame { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
         }
 
-        .content-area { padding: 20px 15px; }
-        .content-card { background-color: #2C2F33; border-radius: 16px; padding: 20px; line-height: 1.8; font-size: 15px; }
-        .content-card h2 { font-size: 18px; margin-top: 0; border-left: 4px solid #7289da; padding-left: 10px; }
-
-        .footer-info {
-            text-align: center;
-            font-size: 12px;
-            color: #888;
-            padding: 20px 0 40px 0;
-            margin-top: auto;
+        /* 権利表記（ヘッダー直下に配置してWikiの邪魔をしない） */
+        .footer-info { 
+            text-align: center; 
+            font-size: 11px; 
+            color: #888; 
+            padding: 5px 0; 
+            background-color: #2C2F33; 
+            border-bottom: 1px solid #40444B;
         }
     </style>
 </head>
 <body>
 
-    <header class="header">
-        <button class="nav-icon-btn" onclick="history.back()">
-            <i class="fas fa-chevron-left"></i>
-        </button>
-
-        <div class="header-title">サブページタイトル</div>
-
-        <button class="nav-icon-btn" id="menuBtn">
-            <i class="fas fa-bars"></i>
-        </button>
-
-        <nav class="menu-list" id="menuList">
-            <a href="index.html" class="menu-item"><i class="fas fa-home"></i> ホーム</a>
-            <a href="#" class="menu-item"><i class="fas fa-map-marked-alt"></i> マップ</a>
-            <a href="#" class="menu-item"><i class="fab fa-discord"></i> Discord</a>
-            <a href="#" class="menu-item"><i class="fas fa-book"></i> ウィキ</a>
-        </nav>
-    </header>
-
     <div class="container">
-        <div class="content-area">
-            <article class="content-card">
-                <h2>Kuromaru サブページ</h2>
-                <p>
-                    このページはサブページの雛形です。
-                </p>
-            </article>
-        </div>
+        <header class="header">
+            <button class="nav-icon-btn" onclick="history.back()">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="header-title">サーバーへの入り方</div>
+            <div style="width: 44px;"></div>
+        </header>
 
-        <div class="footer-info">
-            (C) Kuromaru
+        <div class="footer-info">(C) Kuromaru</div>
+        
+        <div class="iframe-wrapper">
+            <iframe src="https://kuromaru.game-info.wiki/d/%a5%b5%a1%bc%a5%d0%a1%bc%a4%ce%c6%fe%a4%ea%ca%fd#content_1" class="iframe-frame"></iframe>
         </div>
     </div>
 
-    <script>
-        const menuBtn = document.getElementById('menuBtn');
-        const menuList = document.getElementById('menuList');
-        const menuBtnIcon = menuBtn.querySelector('i');
-        menuBtn.addEventListener('click', () => {
-            menuList.classList.toggle('show');
-            if(menuList.classList.contains('show')){
-                menuBtnIcon.classList.replace('fa-bars', 'fa-times');
-            } else {
-                menuBtnIcon.classList.replace('fa-times', 'fa-bars');
-            }
-        });
-    </script>
 </body>
 </html>
