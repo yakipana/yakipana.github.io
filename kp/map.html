@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Map | Kuromaru</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* 基本設定・ズーム禁止 */
+        * { -ms-overflow-style: none; scrollbar-width: none; box-sizing: border-box; touch-action: manipulation; }
+        *::-webkit-scrollbar { display: none; }
+
+        body { 
+            margin: 0; padding: 0; 
+            background-color: #40444B; 
+            color: #ffffff; 
+            font-family: "BIZ UDPGothic", sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            height: 100vh; 
+            overflow: hidden; 
+            padding-top: 56px; 
+        }
+
+        .container { 
+            width: 100%; 
+            max-width: 480px; 
+            height: calc(100vh - 56px); 
+            background-color: #40444B; 
+            display: flex; 
+            flex-direction: column; 
+        }
+
+        /* ヘッダー設定 */
+        .header { 
+            position: fixed; 
+            top: 0; 
+            width: 100%; 
+            max-width: 480px; 
+            height: 56px; 
+            background-color: #2C2F33; 
+            z-index: 1000; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 10px; 
+        }
+
+        .header-title { font-size: 16px; font-weight: bold; flex-grow: 1; text-align: center; }
+
+        .nav-icon-btn { 
+            background: none; border: none; color: #fff; 
+            font-size: 20px; cursor: pointer; 
+            width: 44px; height: 44px; 
+            display: flex; justify-content: center; align-items: center; 
+            text-decoration: none; /* リンクの下線を消す */
+        }
+
+        /* トグルスイッチのスタイル */
+        .map-toggle {
+            display: flex;
+            background-color: #40444B;
+            border-radius: 20px;
+            padding: 3px;
+            width: 80px;
+            height: 34px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle-item {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 17px;
+            transition: all 0.2s ease;
+            color: #888;
+        }
+
+        .toggle-item.active {
+            background-color: #ffffff;
+            color: #2C2F33;
+        }
+
+        /* マップエリア */
+        .map-wrapper { flex-grow: 1; width: 100%; position: relative; background-color: #2C2F33; }
+        .map-frame { width: 100%; height: 100%; border: none; }
+        .footer-info { text-align: center; font-size: 11px; color: #888; padding: 5px 0; background-color: #2C2F33; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="index.html" class="nav-icon-btn">
+            <i class="fas fa-home"></i>
+        </a>
+
+        <div class="header-title">マップ</div>
+
+        <div class="map-toggle" id="mapToggle">
+            <div class="toggle-item active" id="btnMap1">1</div>
+            <div class="toggle-item" id="btnMap2">2</div>
+        </div>
+    </header>
+
+    <div class="container">      
+        <div class="map-wrapper">
+            <iframe id="mapIframe" src="https://kuromaru-web-proxy.fly.dev/" class="map-frame"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const mapIframe = document.getElementById('mapIframe');
+        const btnMap1 = document.getElementById('btnMap1');
+        const btnMap2 = document.getElementById('btnMap2');
+
+        const url1 = "https://kuromaru-web-proxy.fly.dev/";
+        const url2 = "https://kuromaru-web-proxy.fly.dev/xmul2/";
+
+        // マップ1に切り替え
+        btnMap1.addEventListener('click', () => {
+            if (!btnMap1.classList.contains('active')) {
+                mapIframe.src = url1;
+                btnMap1.classList.add('active');
+                btnMap2.classList.remove('active');
+            }
+        });
+
+        // マップ2に切り替え
+        btnMap2.addEventListener('click', () => {
+            if (!btnMap2.classList.contains('active')) {
+                mapIframe.src = url2;
+                btnMap2.classList.add('active');
+                btnMap1.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>

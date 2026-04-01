@@ -2,148 +2,56 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sub Page | Kuromaru</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Template | Kuromaru</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
-
     <style>
-        * { -ms-overflow-style: none; scrollbar-width: none; box-sizing: border-box; }
+        * { -ms-overflow-style: none; scrollbar-width: none; box-sizing: border-box; touch-action: manipulation; }
         *::-webkit-scrollbar { display: none; }
-
-        body {
-            margin: 0; padding: 0;
-            background-color: #40444B;
-            color: #ffffff;
-            font-family: "BIZ UDPGothic", sans-serif;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            overflow-x: hidden;
-            padding-top: 56px; 
-        }
-
-        .container {
-            width: 100%;
-            max-width: 480px;
-            min-height: 100vh;
-            background-color: #40444B;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            max-width: 480px;
-            height: 56px;
-            background-color: #2C2F33;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 5px;
-        }
-
-        .header-title {
-            font-size: 16px;
-            font-weight: bold;
-            flex-grow: 1;
-            text-align: center;
-        }
-
-        .nav-icon-btn {
-            background: none; border: none; color: #fff;
-            font-size: 20px; cursor: pointer;
-            width: 44px; height: 44px;
-            display: flex; justify-content: center; align-items: center;
-        }
-
-        .menu-list {
-            position: absolute;
-            top: 56px; left: 0;
-            width: 100%;
-            background-color: #2C2F33;
-            display: flex;
-            flex-direction: column;
-            z-index: 999;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-20px);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
+        body { margin: 0; padding: 0; background-color: #40444B; color: #ffffff; font-family: "BIZ UDPGothic", sans-serif; display: flex; justify-content: center; min-height: 100vh; padding-top: 56px; }
+        .container { width: 100%; max-width: 480px; min-height: 100vh; background-color: #40444B; display: flex; flex-direction: column; }
+        .header { position: fixed; top: 0; width: 100%; max-width: 480px; height: 56px; background-color: #2C2F33; z-index: 1000; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; }
+        .header-title { font-size: 16px; font-weight: bold; flex-grow: 1; text-align: center; }
+        .nav-icon-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; width: 44px; height: 44px; display: flex; justify-content: center; align-items: center; }
+        .menu-list { position: absolute; top: 56px; left: 0; width: 100%; background-color: #2C2F33; display: flex; flex-direction: column; z-index: 999; opacity: 0; visibility: hidden; transform: translateY(-20px); transition: all 0.3s ease; }
         .menu-list.show { opacity: 1; visibility: visible; transform: translateY(0); }
-        .menu-item {
-            display: flex; align-items: center;
-            padding: 15px 20px; text-decoration: none;
-            color: #eee; font-size: 14px; border-bottom: 1px solid #40444B;
-        }
-
+        .menu-item { display: flex; align-items: center; padding: 15px 20px; text-decoration: none; color: #eee; font-size: 14px; border-bottom: 1px solid #40444B; }
         .content-area { padding: 20px 15px; }
         .content-card { background-color: #2C2F33; border-radius: 16px; padding: 20px; line-height: 1.8; font-size: 15px; }
         .content-card h2 { font-size: 18px; margin-top: 0; border-left: 4px solid #7289da; padding-left: 10px; }
-
-        .footer-info {
-            text-align: center;
-            font-size: 12px;
-            color: #888;
-            padding: 20px 0 40px 0;
-            margin-top: auto;
-        }
+        .footer-info { text-align: center; font-size: 12px; color: #888; padding: 20px 0 40px 0; margin-top: auto; }
     </style>
 </head>
 <body>
-
     <header class="header">
-        <button class="nav-icon-btn" onclick="history.back()">
-            <i class="fas fa-chevron-left"></i>
-        </button>
-
-        <div class="header-title">サブページタイトル</div>
-
-        <button class="nav-icon-btn" id="menuBtn">
-            <i class="fas fa-bars"></i>
-        </button>
-
+        <button class="nav-icon-btn" onclick="history.back()"><i class="fas fa-chevron-left"></i></button>
+        <div class="header-title">サブページ</div>
+        <button class="nav-icon-btn" id="menuBtn"><i class="fas fa-bars"></i></button>
         <nav class="menu-list" id="menuList">
             <a href="index.html" class="menu-item"><i class="fas fa-home"></i> ホーム</a>
-            <a href="#" class="menu-item"><i class="fas fa-map-marked-alt"></i> マップ</a>
-            <a href="#" class="menu-item"><i class="fab fa-discord"></i> Discord</a>
-            <a href="#" class="menu-item"><i class="fas fa-book"></i> ウィキ</a>
+            <a href="map.html" class="menu-item"><i class="fas fa-map-marked-alt"></i> ライブマップ</a>
         </nav>
     </header>
-
     <div class="container">
         <div class="content-area">
             <article class="content-card">
-                <h2>Kuromaru サブページ</h2>
-                <p>
-                    このページはサブページの雛形です。
-                </p>
+                <h2>見出し</h2>
+                <p>ここに内容を記述。</p>
             </article>
         </div>
-
-        <div class="footer-info">
-            (C) Kuromaru
-        </div>
+        <div class="footer-info">(C) Kuromaru</div>
     </div>
-
     <script>
         const menuBtn = document.getElementById('menuBtn');
         const menuList = document.getElementById('menuList');
         const menuBtnIcon = menuBtn.querySelector('i');
         menuBtn.addEventListener('click', () => {
             menuList.classList.toggle('show');
-            if(menuList.classList.contains('show')){
-                menuBtnIcon.classList.replace('fa-bars', 'fa-times');
-            } else {
-                menuBtnIcon.classList.replace('fa-times', 'fa-bars');
-            }
+            if(menuList.classList.contains('show')){ menuBtnIcon.classList.replace('fa-bars', 'fa-times'); }
+            else { menuBtnIcon.classList.replace('fa-times', 'fa-bars'); }
         });
     </script>
 </body>
