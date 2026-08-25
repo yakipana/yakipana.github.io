@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CALORIE</title>
+  <title>CALORIE100</title>
   
   <!-- Material 3 Typography & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,7 +54,14 @@
       margin-top: 16px;
     }
 
-    h1 { font-size: 20px; font-weight: 500; margin: 0 0 8px; text-align: center; }
+    /* アプリバー（タイトル＆リセットボタン） */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    h1 { font-size: 20px; font-weight: 500; margin: 0; }
     h2 { font-size: 16px; font-weight: 500; margin: 0; display: flex; align-items: center; gap: 8px; }
 
     /* Cards */
@@ -239,7 +246,13 @@
 <body>
 
 <div class="app-container">
-  <h1>100gあたりのカロリーから計算</h1>
+  <div class="app-header">
+    <h1>100gあたりのカロリーから計算</h1>
+    <button id="reset-btn" class="btn-text">
+      <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
+      リセット
+    </button>
+  </div>
 
   <!-- 1. 基準値入力カード -->
   <div class="card">
@@ -318,6 +331,7 @@
 <!-- コピー完了通知用スナックバー -->
 <div id="snackbar">コピーしました</div>
 
+
 <script>
   let baseWeight = 100;
   let calculatedCal = 0;
@@ -329,6 +343,7 @@
   const resultCal = document.getElementById('result-cal');
   const resultSalt = document.getElementById('result-salt');
   const copyBtn = document.getElementById('copy-btn');
+  const resetBtn = document.getElementById('reset-btn');
   
   const editBtn = document.getElementById('edit-btn');
   const editDialog = document.getElementById('edit-dialog');
@@ -365,6 +380,14 @@
   inputCal.addEventListener('input', calculate);
   inputSalt.addEventListener('input', calculate);
   inputWeight.addEventListener('input', calculate);
+
+  // リセット処理
+  resetBtn.addEventListener('click', () => {
+    inputCal.value = '';
+    inputSalt.value = '';
+    inputWeight.value = '';
+    calculate();
+  });
 
   editBtn.addEventListener('click', () => {
     inputNewBase.value = baseWeight;
