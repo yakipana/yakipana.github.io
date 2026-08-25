@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Quiz App</title>
+    <style>
+        /* カラー変数 */
+        :root {
+            --bg-dark: #2C2F33;
+            --bg-light: #40444B;
+            --accent: #5865F2;
+            --text-white: #ffffff;
+            --text-gray: #b9bbbe;
+            --success: #43b581;
+            --danger: #f04747;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-white);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #quiz-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            background-color: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        .screen { display: none; flex-direction: column; height: 100%; }
+        .active { display: flex; }
+
+        /* スタート画面 */
+        .start-screen { text-align: center; justify-content: center; }
+        .created-at { color: var(--text-gray); font-size: 0.8rem; margin-bottom: 20px; }
+
+        /* クイズ画面 */
+        .timer-container {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-light);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        #timer-bar {
+            width: 100%;
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.1s linear;
+        }
+
+        .question-text { font-size: 1.2rem; margin-bottom: 20px; line-height: 1.4; }
+        
+        .options-container { display: grid; gap: 10px; }
+        .option-btn {
+            background-color: var(--bg-light);
+            color: var(--text-white);
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+        .option-btn:hover { background-color: var(--accent); }
+
+        /* 解説画面 */
+        .feedback { font-weight: bold; font-size: 1.5rem; margin-bottom: 10px; }
+        .explanation { color: var(--text-gray); margin-bottom: 20px; line-height: 1.5; }
+
+        /* 共通ボタン */
+        .primary-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div id="start-screen" class="screen active">
+        <h1>Quiz App</h1>
+        <p id="info-created" class="created-at"></p>
+        <button class="primary-btn" onclick="startQuiz()">クイズを開始する</button>
+    </div>
+
+    <div id="question-screen" class="screen">
+        <div class="timer-container"><div id="timer-bar"></div></div>
+        <div id="question-text" class="question-text"></div>
+        <div id="options" class="options-container"></div>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <div id="feedback" class="feedback"></div>
+        <div id="explanation-text" class="explanation"></div>
+        <button class="primary-btn" onclick="nextQuestion()">次へ</button>
+    </div>
+
+    <div id="finish-screen" class="screen">
+        <h1>お疲れ様でした！</h1>
+        <p id="final-score"></p>
+        <button class="primary-btn" onclick="location.reload()">最初に戻る</button>
+    </div>
+</div>
+
+<script>
+    /**
+     * 【編集エリア】ここを書き換えてクイズをカスタマイズしてください
+     */
+    const QUIZ_CONFIG = {
+        createdAt: "2026年4月1日",
+        timeLimit: 15, // 各問題の制限時間（秒）
+        questions: [
+            {
+                q: "HTMLの正式名称は？",
+                a: ["HyperText Markup Language", "HighText Mail Language", "HyperText Mark List", "Hyper Tool Markup Language"],
+                correct: 0,
+                desc: "HTMLはウェブページを作成するための標準的なマークアップ言語です。"
+            },
+            {
+                q: "CSSで背景色を指定するプロパティは？",
+                a: ["color", "background-color", "bg-style", "border-color"],
+                correct: 1,
+                desc: "background-colorを使用します。colorは文字色の指定です。"
+            },
+            {
+                q: "JavaScriptでコンソールにログを出す関数は？",
+                a: ["print()", "write()", "log.console()", "console.log()"],
+                correct: 3,
+                desc: "デバッグによく使われるconsole.log()が正解です。"
+            }
+        ]
+    };
+
+    /**
+     * アプリケーションのロジック
+     */
+    let currentIdx = 0;
+    let score = 0;
+    let timerInterval;
+    let timeLeft;
+
+    document.getElementById('info-created').textContent = `作成日: ${QUIZ_CONFIG.createdAt}`;
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function startQuiz() {
+        currentIdx = 0;
+        score = 0;
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const data = QUIZ_CONFIG.questions[currentIdx];
+        document.getElementById('question-text').textContent = data.q;
+        const optionsDiv = document.getElementById('options');
+        optionsDiv.innerHTML = '';
+
+        data.a.forEach((text, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = text;
+            btn.onclick = () => selectOption(i);
+            optionsDiv.appendChild(btn);
+        });
+
+        showScreen('question-screen');
+        startTimer();
+    }
+
+    function startTimer() {
+        timeLeft = QUIZ_CONFIG.timeLimit;
+        const bar = document.getElementById('timer-bar');
+        bar.style.width = '100%';
+        
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            timeLeft -= 0.1;
+            const percentage = (timeLeft / QUIZ_CONFIG.timeLimit) * 100;
+            bar.style.width = percentage + '%';
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                selectOption(-1); // 時間切れ
+            }
+        }, 100);
+    }
+
+    function selectOption(index) {
+        clearInterval(timerInterval);
+        const data = QUIZ_CONFIG.questions[currentIdx];
+        const isCorrect = (index === data.correct);
+        
+        if (isCorrect) score++;
+
+        const feedback = document.getElementById('feedback');
+        feedback.textContent = isCorrect ? "正解！" : (index === -1 ? "時間切れ..." : "不正解");
+        feedback.style.color = isCorrect ? "var(--success)" : "var(--danger)";
+        
+        document.getElementById('explanation-text').textContent = data.desc;
+        showScreen('result-screen');
+    }
+
+    function nextQuestion() {
+        currentIdx++;
+        if (currentIdx < QUIZ_CONFIG.questions.length) {
+            loadQuestion();
+        } else {
+            document.getElementById('final-score').textContent = 
+                `${QUIZ_CONFIG.questions.length}問中 ${score}問正解しました。`;
+            showScreen('finish-screen');
+        }
+    }
+</script>
+</body>
+</html>
