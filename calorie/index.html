@@ -2,399 +2,838 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CALORIE100</title>
-  
-  <!-- Material 3 Typography & Icons -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>CALORIE 100</title>
   
   <style>
-    /* Material Design 3 Color Tokens */
+    /* iOS Design Tokens & Reset */
     :root {
-      --md-sys-color-primary: #006874;
-      --md-sys-color-on-primary: #ffffff;
-      --md-sys-color-primary-container: #97f0ff;
-      --md-sys-color-on-primary-container: #001f24;
-      --md-sys-color-background: #fbfdfd;
-      --md-sys-color-on-background: #191c1d;
-      --md-sys-color-surface: #fbfdfd;
-      --md-sys-color-on-surface: #191c1d;
-      --md-sys-color-surface-variant: #dbe4e6;
-      --md-sys-color-on-surface-variant: #3f484a;
-      --md-sys-color-outline: #6f797a;
-      --md-sys-color-surface-container: #eff5f5;
-      --md-sys-color-surface-container-high: #e9efef;
+      --ios-bg: #F2F2F7;
+      --ios-card-bg: #FFFFFF;
+      --ios-card-secondary-bg: #F8F8FA;
+      --ios-label-primary: #000000;
+      --ios-label-secondary: #8E8E93;
+      --ios-label-tertiary: #C7C7CC;
+      --ios-blue: #007AFF;
+      --ios-blue-light: #E5F1FF;
+      --ios-green: #34C759;
+      --ios-orange: #FF9500;
+      --ios-separator: rgba(60, 60, 67, 0.12);
+      --ios-glass-bg: rgba(255, 255, 255, 0.82);
+      --ios-modal-bg: rgba(250, 250, 250, 0.92);
+      --ios-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+      --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
+    }
+
+    /* iOS Dark Mode Support */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ios-bg: #000000;
+        --ios-card-bg: #1C1C1E;
+        --ios-card-secondary-bg: #2C2C2E;
+        --ios-label-primary: #FFFFFF;
+        --ios-label-secondary: #8E8E93;
+        --ios-label-tertiary: #48484A;
+        --ios-blue: #0A84FF;
+        --ios-blue-light: rgba(10, 132, 255, 0.15);
+        --ios-green: #30D158;
+        --ios-orange: #FF9F0A;
+        --ios-separator: rgba(84, 84, 88, 0.35);
+        --ios-glass-bg: rgba(28, 28, 30, 0.82);
+        --ios-modal-bg: rgba(30, 30, 32, 0.92);
+        --ios-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      }
     }
 
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      font-family: 'Noto Sans JP', sans-serif;
-      background-color: var(--md-sys-color-background);
-      color: var(--md-sys-color-on-background);
-      margin: 0;
-      padding: 16px;
+      font-family: var(--font-system);
+      background-color: var(--ios-bg);
+      color: var(--ios-label-primary);
+      min-height: 100vh;
       display: flex;
       justify-content: center;
-      -webkit-tap-highlight-color: transparent;
+      padding: 16px 16px 40px 16px;
+      padding-top: calc(16px + env(safe-area-inset-top));
+      padding-bottom: calc(40px + env(safe-area-inset-bottom));
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* PCでも崩れないように最大幅を制限して中央配置 */
     .app-container {
       width: 100%;
-      max-width: 480px;
+      max-width: 440px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      margin-top: 16px;
+      gap: 20px;
     }
 
-    /* アプリバー（タイトル＆リセットボタン） */
+    /* iOS Navigation Bar / Header */
     .app-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    h1 { font-size: 20px; font-weight: 500; margin: 0; }
-    h2 { font-size: 16px; font-weight: 500; margin: 0; display: flex; align-items: center; gap: 8px; }
-
-    /* Cards */
-    .card {
-      background-color: var(--md-sys-color-surface-container);
-      border-radius: 24px;
-      padding: 20px;
-    }
-    .card.result-card {
-      background-color: var(--md-sys-color-primary-container);
-      color: var(--md-sys-color-on-primary-container);
-      text-align: center;
-      padding: 24px 20px;
+      align-items: flex-end;
+      padding: 12px 4px 4px 4px;
     }
 
-    /* Outlined Text Fields */
-    .input-row {
-      display: flex;
-      gap: 12px;
-      margin-top: 20px;
-    }
-    .input-group {
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      flex: 1; /* 横並び時に均等に幅を取る */
-    }
-    .input-group.full-width {
-      margin-top: 20px;
-    }
-    .input-group label {
-      font-size: 12px;
-      color: var(--md-sys-color-on-surface-variant);
-      position: absolute;
-      top: -8px;
-      left: 12px;
-      background: var(--md-sys-color-surface-container);
-      padding: 0 4px;
-      z-index: 1;
-    }
-    input[type="number"] {
-      width: 100%;
-      background-color: transparent;
-      border: 1px solid var(--md-sys-color-outline);
-      border-radius: 4px;
-      padding: 16px 36px 16px 12px; /* 単位が被らないように右余白を調整 */
-      font-size: 16px;
-      color: var(--md-sys-color-on-background);
-      font-family: inherit;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    input[type="number"]:focus {
-      border-color: var(--md-sys-color-primary);
-      border-width: 2px;
-      padding: 15px 35px 15px 11px; /* ボーダーが太くなった分の調整 */
-    }
-    .suffix {
-      position: absolute;
-      right: 12px;
-      top: 16px;
-      color: var(--md-sys-color-on-surface-variant);
-      pointer-events: none;
+    .app-header-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--ios-label-primary);
     }
 
-    /* Buttons */
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    button {
-      font-family: inherit;
-      cursor: pointer;
-      outline: none;
-    }
-    .btn-text {
-      background: transparent;
+    .ios-btn-nav {
+      background: none;
       border: none;
-      color: var(--md-sys-color-primary);
-      font-size: 14px;
+      color: var(--ios-blue);
+      font-size: 16px;
       font-weight: 500;
-      padding: 8px 12px;
-      border-radius: 20px;
+      cursor: pointer;
       display: flex;
       align-items: center;
       gap: 4px;
-      transition: background-color 0.2s;
+      padding: 6px 10px;
+      border-radius: 18px;
+      transition: opacity 0.2s, background-color 0.2s;
     }
-    .btn-text:hover, .btn-text:active {
-      background-color: rgba(0, 104, 116, 0.08);
+
+    .ios-btn-nav:active {
+      opacity: 0.6;
+      background-color: var(--ios-blue-light);
     }
-    .btn-filled {
-      background-color: var(--md-sys-color-primary);
-      color: var(--md-sys-color-on-primary);
-      border: none;
-      border-radius: 100px;
-      padding: 10px 24px;
-      font-size: 14px;
+
+    /* iOS Switch Section */
+    .ios-switch-section {
+      background-color: var(--ios-card-bg);
+      border-radius: 16px;
+      box-shadow: var(--ios-shadow);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ios-switch-label {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ios-label-primary);
+    }
+
+    /* iOS Toggle Switch (UISwitch) */
+    .ios-switch {
+      position: relative;
+      display: inline-block;
+      width: 51px;
+      height: 31px;
+      flex-shrink: 0;
+    }
+
+    .ios-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .ios-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(120, 120, 128, 0.16);
+      transition: .3s cubic-bezier(0.25, 0.1, 0.25, 1);
+      border-radius: 31px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .ios-slider {
+        background-color: rgba(120, 120, 128, 0.32);
+      }
+    }
+
+    .ios-slider:before {
+      position: absolute;
+      content: "";
+      height: 27px;
+      width: 27px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #FFFFFF;
+      transition: .3s cubic-bezier(0.25, 0.1, 0.25, 1);
+      border-radius: 50%;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(0, 0, 0, 0.06);
+    }
+
+    input:checked + .ios-slider {
+      background-color: var(--ios-green);
+    }
+
+    input:checked + .ios-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* iOS Inset Grouped Section / Card */
+    .ios-section {
+      background-color: var(--ios-card-bg);
+      border-radius: 16px;
+      box-shadow: var(--ios-shadow);
+      overflow: hidden;
+    }
+
+    .ios-section-header {
+      padding: 14px 16px 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 0.5px solid var(--ios-separator);
+    }
+
+    .ios-section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ios-label-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ios-icon-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background-color: var(--ios-blue-light);
+      color: var(--ios-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ios-icon-badge.orange {
+      background-color: rgba(255, 149, 0, 0.15);
+      color: var(--ios-orange);
+    }
+
+    .ios-icon-badge.green {
+      background-color: rgba(52, 199, 89, 0.15);
+      color: var(--ios-green);
+    }
+
+    /* Input List Items (iOS Form Style) */
+    .ios-input-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ios-input-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      position: relative;
+    }
+
+    .ios-input-row:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 16px;
+      right: 0;
+      bottom: 0;
+      height: 0.5px;
+      background-color: var(--ios-separator);
+    }
+
+    .pro-field {
+      display: none; /* ProモードOFF時は非表示 */
+    }
+
+    .ios-input-label {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--ios-label-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ios-badge-req {
+      font-size: 10px;
+      font-weight: 600;
+      background-color: rgba(255, 59, 48, 0.12);
+      color: #FF3B30;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .ios-badge-opt {
+      font-size: 10px;
       font-weight: 500;
+      background-color: rgba(142, 142, 147, 0.12);
+      color: var(--ios-label-secondary);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .ios-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 180px;
+    }
+
+    .ios-input-field {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 20px;
+      font-weight: 600;
+      text-align: right;
+      color: var(--ios-blue);
+      outline: none;
+      -moz-appearance: textfield;
+    }
+
+    .ios-input-field::-webkit-outer-spin-button,
+    .ios-input-field::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .ios-input-field::placeholder {
+      color: var(--ios-label-tertiary);
+      font-weight: 400;
+    }
+
+    .ios-input-unit {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--ios-label-secondary);
+      min-width: 30px;
+      text-align: right;
+    }
+
+    /* Hero Result Card */
+    .ios-result-card {
+      background: linear-gradient(135deg, #007AFF 0%, #0051A8 100%);
+      color: #FFFFFF;
+      padding: 24px 20px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 10px 24px rgba(0, 122, 255, 0.28);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ios-result-caption {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      opacity: 0.85;
+      margin-bottom: 6px;
+    }
+
+    .ios-result-main {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 6px;
+      margin: 4px 0 8px 0;
+    }
+
+    .ios-result-value {
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1;
+    }
+
+    .ios-result-unit {
+      font-size: 22px;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    .ios-result-salt-text {
+      font-size: 15px;
+      font-weight: 500;
+      opacity: 0.9;
+      min-height: 22px;
+      margin-bottom: 18px;
+      word-break: break-all;
+    }
+
+    /* Primary Action Button */
+    .ios-btn-primary {
+      background: #FFFFFF;
+      color: #007AFF;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      width: 100%;
-      max-width: 240px;
-      margin-top: 16px;
-      height: 48px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+      transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s;
     }
-    .btn-filled:hover, .btn-filled:active {
+
+    .ios-btn-primary:active {
+      transform: scale(0.97);
       opacity: 0.9;
     }
 
-    /* Results area */
-    .result-cal {
-      font-size: 40px;
-      font-weight: 700;
-      line-height: 1.2;
-      margin: 8px 0;
-    }
-    .result-salt {
-      font-size: 16px;
-      margin-bottom: 8px;
-      min-height: 24px; /* 入力がない時も高さを保持 */
+    .ios-btn-primary svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
     }
 
-    /* Dialog (Material 3 Style) */
-    dialog {
-      border: none;
-      border-radius: 28px;
-      background-color: var(--md-sys-color-surface-container-high);
-      padding: 24px;
-      width: 90%;
-      max-width: 320px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      color: var(--md-sys-color-on-surface);
-    }
-    dialog::backdrop {
-      background: rgba(0, 0, 0, 0.4);
-    }
-    .dialog-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 24px;
-    }
-    dialog .input-group label {
-      background: var(--md-sys-color-surface-container-high);
-    }
-
-    /* Snackbar (Toast) */
-    #snackbar {
-      visibility: hidden;
-      min-width: 250px;
-      background-color: #313033;
-      color: #f4eff4;
-      text-align: center;
-      border-radius: 4px;
-      padding: 14px;
+    /* Dynamic Island Toast */
+    .ios-toast {
       position: fixed;
-      z-index: 10;
+      top: -80px;
       left: 50%;
-      bottom: 30px;
       transform: translateX(-50%);
+      background: var(--ios-glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      color: var(--ios-label-primary);
+      padding: 12px 20px;
+      border-radius: 30px;
       font-size: 14px;
-      box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px 0 rgba(0,0,0,.14);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+      border: 0.5px solid rgba(255, 255, 255, 0.2);
+      z-index: 1000;
+      transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+      opacity: 0;
+      pointer-events: none;
     }
-    #snackbar.show {
-      visibility: visible;
-      animation: fadein 0.5s, fadeout 0.5s 2.5s;
+
+    .ios-toast.show {
+      top: calc(16px + env(safe-area-inset-top));
+      opacity: 1;
     }
-    @keyframes fadein {
-      from {bottom: 0; opacity: 0;}
-      to {bottom: 30px; opacity: 1;}
+
+    .ios-toast-icon {
+      color: var(--ios-green);
+      display: flex;
+      align-items: center;
     }
-    @keyframes fadeout {
-      from {bottom: 30px; opacity: 1;}
-      to {bottom: 0; opacity: 0;}
+
+    /* Modal Sheet */
+    .ios-modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .ios-modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .ios-modal {
+      background: var(--ios-modal-bg);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 320px;
+      padding: 24px 20px 20px 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      transform: scale(0.92);
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border: 0.5px solid var(--ios-separator);
+      text-align: center;
+    }
+
+    .ios-modal-backdrop.active .ios-modal {
+      transform: scale(1);
+    }
+
+    .ios-modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ios-label-primary);
+      margin-bottom: 6px;
+    }
+
+    .ios-modal-desc {
+      font-size: 13px;
+      color: var(--ios-label-secondary);
+      margin-bottom: 20px;
+      line-height: 1.35;
+    }
+
+    .ios-modal-input-container {
+      background: var(--ios-card-bg);
+      border-radius: 12px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 0.5px solid var(--ios-separator);
+      margin-bottom: 20px;
+    }
+
+    .ios-modal-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--ios-blue);
+      text-align: right;
+      outline: none;
+    }
+
+    .ios-modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .ios-modal-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .ios-modal-btn.cancel {
+      background: rgba(142, 142, 147, 0.15);
+      color: var(--ios-label-primary);
+    }
+
+    .ios-modal-btn.save {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
     }
   </style>
 </head>
 <body>
 
 <div class="app-container">
-  <div class="app-header">
-    <h1>100gあたりのカロリーから計算</h1>
-    <button id="reset-btn" class="btn-text">
-      <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
+  
+  <!-- Header -->
+  <header class="app-header">
+    <h1 class="app-header-title">CALORIE 100</h1>
+    <button id="reset-btn" class="ios-btn-nav">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      <span>リセット</span>
     </button>
-  </div>
+  </header>
 
-  <!-- 1. 基準値入力カード -->
-  <div class="card">
-    <div class="header-row">
-      <h2>
-        <span class="material-symbols-outlined">restaurant</span>
-        <span id="base-weight-display">100</span>g あたりの成分
-      </h2>
-      <button id="edit-btn" class="btn-text">
-        <span class="material-symbols-outlined" style="font-size: 18px;">edit</span>
-        編集
+  <!-- Pro Mode Switch Section -->
+  <section class="ios-switch-section">
+    <span class="ios-switch-label">PFCモード</span>
+    <label class="ios-switch">
+      <input type="checkbox" id="pro-mode-toggle">
+      <span class="ios-slider"></span>
+    </label>
+  </section>
+
+  <!-- 1. 基準値入力 -->
+  <section class="ios-section">
+    <div class="ios-section-header">
+      <div class="ios-section-title">
+        <div class="ios-icon-badge orange">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.55 3.89 3.57 4.23V22h2.86v-8.77C11.45 12.89 13 11.12 13 9V2h-2v7zm8-7h-2c-1.1 0-2 .9-2 2v18h2v-7h2v7h2V4c0-1.1-.9-2-2-2z"/></svg>
+        </div>
+        <span><span id="base-weight-display">100</span>g あたりの成分</span>
+      </div>
+      <button id="edit-btn" class="ios-btn-nav">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        <span>変更</span>
       </button>
     </div>
 
-    <!-- カロリーと塩分を横並びにするコンテナ -->
-    <div class="input-row">
-      <div class="input-group">
-        <label>カロリー *必須</label>
-        <input type="number" id="input-cal" placeholder="0" inputmode="decimal">
-        <span class="suffix">kcal</span>
+    <div class="ios-input-group">
+      <div class="ios-input-row">
+        <div class="ios-input-label">
+          エネルギー
+          <span class="ios-badge-req">必須</span>
+        </div>
+        <div class="ios-input-wrapper">
+          <input type="number" id="input-cal" class="ios-input-field" placeholder="0" inputmode="decimal">
+          <span class="ios-input-unit">kcal</span>
+        </div>
       </div>
 
-      <div class="input-group">
-        <label>塩分 *任意</label>
-        <input type="number" id="input-salt" placeholder="0" inputmode="decimal">
-        <span class="suffix">g</span>
+      <div class="ios-input-row">
+        <div class="ios-input-label">
+          食塩相当量
+          <span class="ios-badge-opt">任意</span>
+        </div>
+        <div class="ios-input-wrapper">
+          <input type="number" id="input-salt" class="ios-input-field" placeholder="0" inputmode="decimal">
+          <span class="ios-input-unit">g</span>
+        </div>
+      </div>
+
+      <!-- Pro Mode Additional Fields -->
+      <div class="ios-input-row pro-field">
+        <div class="ios-input-label">
+          たんぱく質
+          <span class="ios-badge-opt">任意</span>
+        </div>
+        <div class="ios-input-wrapper">
+          <input type="number" id="input-protein" class="ios-input-field" placeholder="0" inputmode="decimal">
+          <span class="ios-input-unit">g</span>
+        </div>
+      </div>
+
+      <div class="ios-input-row pro-field">
+        <div class="ios-input-label">
+          脂質
+          <span class="ios-badge-opt">任意</span>
+        </div>
+        <div class="ios-input-wrapper">
+          <input type="number" id="input-fat" class="ios-input-field" placeholder="0" inputmode="decimal">
+          <span class="ios-input-unit">g</span>
+        </div>
+      </div>
+
+      <div class="ios-input-row pro-field">
+        <div class="ios-input-label">
+          炭水化物
+          <span class="ios-badge-opt">任意</span>
+        </div>
+        <div class="ios-input-wrapper">
+          <input type="number" id="input-carbo" class="ios-input-field" placeholder="0" inputmode="decimal">
+          <span class="ios-input-unit">g</span>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- 2. はかったグラム数カード -->
-  <div class="card">
-    <h2>
-      <span class="material-symbols-outlined">scale</span>
-      はかったグラム数
-    </h2>
-    <div class="input-group full-width">
-      <label>重量</label>
-      <input type="number" id="input-weight" placeholder="0" inputmode="decimal">
-      <span class="suffix">g</span>
+  <!-- 2. はかったグラム数 -->
+  <section class="ios-section">
+    <div class="ios-section-header">
+      <div class="ios-section-title">
+        <div class="ios-icon-badge green">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.68.79 4.95 2.05l-1.41 1.41C14.6 8.51 13.37 8 12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4c1.37 0 2.6-.51 3.54-1.46l1.41 1.41C15.68 17.21 13.93 18 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6z"/></svg>
+        </div>
+        <span>計量結果</span>
+      </div>
     </div>
-  </div>
 
-  <!-- 3. 結果表示＆コピーカード -->
-  <div class="card result-card">
-    <div style="font-size: 14px; font-weight: 500;">計算結果</div>
-    <div class="result-cal" id="result-cal">0 <span style="font-size: 20px;">kcal</span></div>
-    <div class="result-salt" id="result-salt"></div>
+    <div class="ios-input-group">
+      <div class="ios-input-row">
+        <div class="ios-input-label">はかった重量</div>
+        <div class="ios-input-wrapper">
+          <input type="number" id="input-weight" class="ios-input-field" placeholder="0" inputmode="decimal">
+          <span class="ios-input-unit">g</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 結果表示＆コピー -->
+  <div class="ios-result-card">
+    <div class="ios-result-caption">計算結果</div>
+    <div class="ios-result-main">
+      <span class="ios-result-value" id="result-cal">0</span>
+      <span class="ios-result-unit">kcal</span>
+    </div>
+    <div class="ios-result-salt-text" id="result-salt"></div>
     
-    <button id="copy-btn" class="btn-filled">
-      <span class="material-symbols-outlined">content_copy</span>
-      結果をコピー
+    <button id="copy-btn" class="ios-btn-primary">
+      <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+      <span>結果をコピー</span>
     </button>
+  </div>
+
+</div>
+
+<!-- iOS Modal -->
+<div class="ios-modal-backdrop" id="modal-backdrop">
+  <div class="ios-modal">
+    <div class="ios-modal-title">基準グラム数の変更</div>
+    <div class="ios-modal-desc">食品パッケージに表記されている基準量を入力してください。</div>
+    
+    <div class="ios-modal-input-container">
+      <span style="font-size: 14px; color: var(--ios-label-secondary);">基準重量</span>
+      <div style="display: flex; align-items: center; gap: 4px; max-width: 120px;">
+        <input type="number" id="input-new-base" class="ios-modal-input" value="100" inputmode="decimal">
+        <span style="font-size: 14px; color: var(--ios-label-secondary);">g</span>
+      </div>
+    </div>
+
+    <div class="ios-modal-actions">
+      <button class="ios-modal-btn cancel" id="dialog-cancel">キャンセル</button>
+      <button class="ios-modal-btn save" id="dialog-save">保存</button>
+    </div>
   </div>
 </div>
 
-<br>
-
-<!-- 基準グラム数変更ダイアログ -->
-<dialog id="edit-dialog">
-  <h3 style="margin-top: 0; font-size: 18px; font-weight: 500;">基準グラム数の変更</h3>
-  <p style="font-size: 14px; color: var(--md-sys-color-on-surface-variant); margin-bottom: 20px;">
-    食品パッケージの表記に合わせたグラム数を入力してください。
-  </p>
-  <div class="input-group full-width" style="margin-top: 0;">
-    <label>基準となる重量</label>
-    <input type="number" id="input-new-base" value="100" inputmode="decimal">
-    <span class="suffix">g</span>
+<!-- iOS Toast -->
+<div id="toast" class="ios-toast">
+  <div class="ios-toast-icon">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
   </div>
-  <div class="dialog-actions">
-    <button class="btn-text" id="dialog-cancel">キャンセル</button>
-    <button class="btn-text" id="dialog-save" style="font-weight: 700;">保存</button>
-  </div>
-</dialog>
-
-<!-- コピー完了通知用スナックバー -->
-<div id="snackbar">コピーしました</div>
-
+  <span id="toast-text">クリップボードにコピーしました</span>
+</div>
 
 <script>
   let baseWeight = 100;
   let calculatedCal = 0;
   let calculatedSalt = null;
+  let calculatedProtein = null;
+  let calculatedFat = null;
+  let calculatedCarbo = null;
+
+  const proModeToggle = document.getElementById('pro-mode-toggle');
+  const proFields = document.querySelectorAll('.pro-field');
 
   const inputCal = document.getElementById('input-cal');
   const inputSalt = document.getElementById('input-salt');
+  const inputProtein = document.getElementById('input-protein');
+  const inputFat = document.getElementById('input-fat');
+  const inputCarbo = document.getElementById('input-carbo');
   const inputWeight = document.getElementById('input-weight');
+
   const resultCal = document.getElementById('result-cal');
   const resultSalt = document.getElementById('result-salt');
   const copyBtn = document.getElementById('copy-btn');
   const resetBtn = document.getElementById('reset-btn');
   
   const editBtn = document.getElementById('edit-btn');
-  const editDialog = document.getElementById('edit-dialog');
+  const modalBackdrop = document.getElementById('modal-backdrop');
   const inputNewBase = document.getElementById('input-new-base');
   const dialogCancel = document.getElementById('dialog-cancel');
   const dialogSave = document.getElementById('dialog-save');
   const baseWeightDisplay = document.getElementById('base-weight-display');
-  const snackbar = document.getElementById('snackbar');
+  const toast = document.getElementById('toast');
+  const toastText = document.getElementById('toast-text');
+
+  let toastTimer = null;
+
+  // Pro Mode Toggle
+  proModeToggle.addEventListener('change', (e) => {
+    const isPro = e.target.checked;
+    proFields.forEach(field => {
+      field.style.display = isPro ? 'flex' : 'none';
+    });
+    calculate();
+  });
 
   function calculate() {
     const cal = parseFloat(inputCal.value);
     const salt = parseFloat(inputSalt.value);
+    const protein = parseFloat(inputProtein.value);
+    const fat = parseFloat(inputFat.value);
+    const carbo = parseFloat(inputCarbo.value);
     const weight = parseFloat(inputWeight.value);
 
     if (!isNaN(cal) && !isNaN(weight) && baseWeight > 0) {
       calculatedCal = Math.round((cal / baseWeight) * weight);
-      resultCal.innerHTML = `${calculatedCal} <span style="font-size: 20px;">kcal</span>`;
+      resultCal.textContent = calculatedCal.toLocaleString();
+
+      let details = [];
 
       if (!isNaN(salt)) {
         calculatedSalt = Math.round(((salt / baseWeight) * weight) * 10) / 10;
-        resultSalt.textContent = `塩分: ${calculatedSalt} g`;
+        details.push(`塩分: ${calculatedSalt}g`);
       } else {
         calculatedSalt = null;
-        resultSalt.textContent = '';
       }
+
+      if (proModeToggle.checked) {
+        if (!isNaN(protein)) {
+          calculatedProtein = Math.round(((protein / baseWeight) * weight) * 10) / 10;
+          details.push(`P: ${calculatedProtein}g`);
+        } else { calculatedProtein = null; }
+
+        if (!isNaN(fat)) {
+          calculatedFat = Math.round(((fat / baseWeight) * weight) * 10) / 10;
+          details.push(`F: ${calculatedFat}g`);
+        } else { calculatedFat = null; }
+
+        if (!isNaN(carbo)) {
+          calculatedCarbo = Math.round(((carbo / baseWeight) * weight) * 10) / 10;
+          details.push(`C: ${calculatedCarbo}g`);
+        } else { calculatedCarbo = null; }
+      }
+
+      resultSalt.textContent = details.join(' / ');
     } else {
-      resultCal.innerHTML = `0 <span style="font-size: 20px;">kcal</span>`;
+      resultCal.textContent = '0';
       resultSalt.textContent = '';
       calculatedCal = 0;
       calculatedSalt = null;
+      calculatedProtein = null;
+      calculatedFat = null;
+      calculatedCarbo = null;
     }
   }
 
-  inputCal.addEventListener('input', calculate);
-  inputSalt.addEventListener('input', calculate);
-  inputWeight.addEventListener('input', calculate);
+  [inputCal, inputSalt, inputProtein, inputFat, inputCarbo, inputWeight].forEach(input => {
+    input.addEventListener('input', calculate);
+  });
 
-  // リセット処理
   resetBtn.addEventListener('click', () => {
     inputCal.value = '';
     inputSalt.value = '';
+    inputProtein.value = '';
+    inputFat.value = '';
+    inputCarbo.value = '';
     inputWeight.value = '';
     calculate();
   });
 
   editBtn.addEventListener('click', () => {
     inputNewBase.value = baseWeight;
-    editDialog.showModal();
+    modalBackdrop.classList.add('active');
   });
 
   dialogCancel.addEventListener('click', () => {
-    editDialog.close();
+    modalBackdrop.classList.remove('active');
+  });
+
+  modalBackdrop.addEventListener('click', (e) => {
+    if (e.target === modalBackdrop) modalBackdrop.classList.remove('active');
   });
 
   dialogSave.addEventListener('click', () => {
@@ -404,33 +843,46 @@
       baseWeightDisplay.textContent = baseWeight;
       calculate(); 
     }
-    editDialog.close();
+    modalBackdrop.classList.remove('active');
   });
 
   copyBtn.addEventListener('click', () => {
     const cal = parseFloat(inputCal.value);
     const weight = parseFloat(inputWeight.value);
-    if (isNaN(cal) || isNaN(weight)) return;
-
-    let copyText = `${calculatedCal}kcal`;
-    if (calculatedSalt !== null) {
-      copyText = `${calculatedCal}kcal / ${calculatedSalt}g`;
+    if (isNaN(cal) || isNaN(weight)) {
+      showToast('カロリーと重量を入力してください');
+      return;
     }
 
-    navigator.clipboard.writeText(copyText).then(() => {
-      showSnackbar(`「${copyText}」をコピーしました`);
-    }).catch(err => {
-      console.error('コピーに失敗しました', err);
-      showSnackbar('コピーに失敗しました');
-    });
+    let parts = [`${calculatedCal}kcal`];
+    if (calculatedSalt !== null) parts.push(`塩分: ${calculatedSalt}g`);
+    
+    if (proModeToggle.checked) {
+      if (calculatedProtein !== null) parts.push(`P: ${calculatedProtein}g`);
+      if (calculatedFat !== null) parts.push(`F: ${calculatedFat}g`);
+      if (calculatedCarbo !== null) parts.push(`C: ${calculatedCarbo}g`);
+    }
+
+    const copyText = parts.join(' / ');
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(copyText).then(() => {
+        showToast(`「${copyText}」をコピーしました`);
+      }).catch(() => {
+        showToast('コピーに失敗しました');
+      });
+    } else {
+      showToast(`「${copyText}」`);
+    }
   });
 
-  function showSnackbar(msg) {
-    snackbar.textContent = msg;
-    snackbar.className = "show";
-    setTimeout(() => { 
-      snackbar.className = snackbar.className.replace("show", ""); 
-    }, 3000);
+  function showToast(msg) {
+    toastText.textContent = msg;
+    toast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2600);
   }
 </script>
 </body>
