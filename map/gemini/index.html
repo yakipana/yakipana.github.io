@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <!-- ピンチイン・ピンチアウトによる画面全体のズームを無効化し、ノッチ/セーフエリアに対応 -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <title>GPS Speedometer & Map</title>
+
+  <!-- Google Fonts: Inter (視認性の高い等幅数字・クリーンなサンセリフ) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Leaflet.js CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <style>
+    /* ==========================================================================
+       ベース設定 & ユーザー操作制限（文字なぞり禁止・ピンチズーム抑止）
+       ========================================================================== */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: #e5e3df;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN',
+        'Yu Gothic', sans-serif;
+      /* ブラウザ標準のピンチズーム・ダブルタップズーム・オーバースクロールを抑止 */
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    /* ==========================================================================
+       全画面 OpenStreetMap コンテナ
+       ========================================================================== */
+    #map {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      /* 地図のみ単一指でのパン操作を許可し、二本指ピンチによるブラウザ拡大はJSで制御 */
+      touch-action: pan-x pan-y;
+    }
+
+    /* OpenStreetMap 帰属表示（著作権表記は維持しつつUIと重ならない位置に控えめに配置） */
+    .leaflet-control-attribution {
+      background: rgba(255, 255, 255, 0.72) !important;
+      color: #333 !important;
+      font-size: 10px !important;
+      padding: 1px 6px !important;
+      border-top-left-radius: 6px;
+      pointer-events: auto;
+      margin-bottom: env(safe-area-inset-bottom, 0px) !important;
+    }
+
+    .leaflet-bottom.leaflet-right {
+      right: auto !important;
+      left: 50% !important;
+      transform: translateX(-50%);
+      bottom: 0 !important;
+    }
+
+    /* ==========================================================================
+       現在地マーカー（参考画像準拠のシアンブルー円＋白枠＋ドロップシャドウ）
+       ========================================================================== */
+    .current-location-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .location-dot {
+      width: 30px;
+      height: 30px;
+      background-color: #00a8f3;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      transition: transform 0.2s ease;
+    }
+
+    /* ==========================================================================
+       UI オーバーレイ共通（ポインターイベントを地図へ透過させ、UI部品のみ反応）
+       ========================================================================== */
+    .ui-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      pointer-events: none;
+      padding-top: max(14px, env(safe-area-inset-top));
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    /* ==========================================================================
+       右上：スピードメーター（199 km/h まで対応・右寄せ・ダークグレー角丸）
+       ========================================================================== */
+    .speedometer-box {
+      position: absolute;
+      top: max(14px, env(safe-area-inset-top));
+      right: max(16px, env(safe-area-inset-right));
+      background-color: rgba(62, 62, 62, 0.94);
+      color: #ffffff;
+      border-radius: 12px;
+      /* 199 km/h (3桁 + 単位) が横揺れせず余裕を持って収まる幅をスマホ横〜タブレットで確保 */
+      min-width: clamp(190px, 23vw, 270px);
+      padding: clamp(8px, 1.3vh, 14px) clamp(16px, 2vw, 24px);
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      text-align: right;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .speed-value {
+      font-size: clamp(40px, 6.2vh, 66px);
+      font-weight: 600;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      color: #ffffff;
+    }
+
+    .speed-unit {
+      font-size: clamp(20px, 3.1vh, 32px);
+      font-weight: 500;
+      line-height: 1.1;
+      margin-left: 3px;
+      color: #f3f4f6;
+    }
+
+    /* ==========================================================================
+       左下：デジタル時計（時:分 + 秒表示・ダークグレー角丸）
+       ========================================================================== */
+    .clock-box {
+      position: absolute;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      left: max(16px, env(safe-area-inset-left));
+      background-color: rgba(62, 62, 62, 0.94);
+      color: #ffffff;
+      border-radius: 12px;
+      padding: clamp(9px, 1.4vh, 15px) clamp(16px, 2.2vw, 24px);
+      display: inline-flex;
+      align-items: baseline;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .clock-hm {
+      font-size: clamp(38px, 6vh, 64px);
+      font-weight: 600;
+      line-height: 1.05;
+      letter-spacing: 0.01em;
+      font-variant-numeric: tabular-nums;
+      color: #ffffff;
+    }
+
+    .clock-sec {
+      font-size: clamp(27px, 4.3vh, 46px);
+      font-weight: 600;
+      line-height: 1.05;
+      margin-left: 2px;
+      font-variant-numeric: tabular-nums;
+      color: #ffffff;
+    }
+
+    /* ==========================================================================
+       右下：縮尺変更ボタン（＋ / − 円形ボタン縦並び）
+       ========================================================================== */
+    .zoom-controls {
+      position: absolute;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      right: max(16px, env(safe-area-inset-right));
+      display: flex;
+      flex-direction: column;
+      gap: clamp(10px, 1.6vh, 16px);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .zoom-btn {
+      width: clamp(54px, 8.2vh, 72px);
+      height: clamp(54px, 8.2vh, 72px);
+      border-radius: 50%;
+      background-color: rgba(235, 235, 235, 0.92);
+      border: 2.2px solid #1f1f1f;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      outline: none;
+      transition: transform 0.1s ease, background-color 0.12s ease;
+      touch-action: manipulation;
+    }
+
+    .zoom-btn:active {
+      transform: scale(0.92);
+      background-color: rgba(210, 210, 210, 0.98);
+    }
+
+    .zoom-btn svg {
+      width: 52%;
+      height: 52%;
+      stroke: #111111;
+      stroke-width: 3.4;
+      stroke-linecap: round;
+    }
+
+    /* ==========================================================================
+       下部中央：「現在地へ戻る」ボタン（手動スクロール時のみ表示）
+       ========================================================================== */
+    .recenter-btn {
+      position: absolute;
+      bottom: max(22px, calc(env(safe-area-inset-bottom) + 8px));
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background-color: rgba(45, 45, 45, 0.95);
+      color: #ffffff;
+      border: 2px solid rgba(255, 255, 255, 0.85);
+      border-radius: 9999px;
+      padding: clamp(10px, 1.5vh, 14px) clamp(20px, 2.8vw, 30px);
+      font-size: clamp(15px, 2.3vh, 20px);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.38);
+      cursor: pointer;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease,
+        background-color 0.15s ease;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+
+    .recenter-btn.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .recenter-btn:active {
+      transform: translateX(-50%) scale(0.95);
+      background-color: #0088cc;
+    }
+
+    .recenter-dot-icon {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #00a8f3;
+      border: 2px solid #ffffff;
+      flex-shrink: 0;
+    }
+
+    /* 縦向き（ポートレート）時でも重なりが起きないよう微調整 */
+    @media (orientation: portrait) and (max-width: 600px) {
+      .speedometer-box {
+        min-width: 165px;
+        padding: 8px 14px;
+      }
+      .speed-value {
+        font-size: 38px;
+      }
+      .speed-unit {
+        font-size: 18px;
+      }
+      .clock-box {
+        padding: 8px 14px;
+      }
+      .clock-hm {
+        font-size: 34px;
+      }
+      .clock-sec {
+        font-size: 24px;
+      }
+      .recenter-btn {
+        bottom: calc(max(14px, env(safe-area-inset-bottom)) + 74px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- OpenStreetMap 全画面表示領域 -->
+  <div id="map" aria-label="OpenStreetMap"></div>
+
+  <!-- UI オーバーレイ層 -->
+  <div class="ui-layer" id="uiLayer">
+    <!-- 右上：スピードメーター（最大 199 km/h 対応・右寄せ） -->
+    <div class="speedometer-box" role="status" aria-live="polite" aria-label="現在の速度">
+      <span class="speed-value" id="speedValue">0</span>
+      <span class="speed-unit">km/h</span>
+    </div>
+
+    <!-- 左下：時計表示（秒まで表示） -->
+    <div class="clock-box" role="timer" aria-label="現在時刻">
+      <span class="clock-hm" id="clockHm">00:00</span>
+      <span class="clock-sec" id="clockSec">00</span>
+    </div>
+
+    <!-- 下部中央：現在地へ戻るボタン（追従中は非表示） -->
+    <button
+      type="button"
+      class="recenter-btn"
+      id="recenterBtn"
+      aria-label="現在地へ戻る"
+    >
+      <span class="recenter-dot-icon"></span>
+      <span>現在地へ戻る</span>
+    </button>
+
+    <!-- 右下：縮尺変更ボタン（＋ / −） -->
+    <div class="zoom-controls" role="group" aria-label="地図の縮尺変更">
+      <button type="button" class="zoom-btn" id="zoomInBtn" aria-label="拡大">
+        <svg viewBox="0 0 24 24" fill="none">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+      <button type="button" class="zoom-btn" id="zoomOutBtn" aria-label="縮小">
+        <svg viewBox="0 0 24 24" fill="none">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Leaflet.js スクリプト -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* ========================================================================
+         1. ピンチイン・ピンチアウト及び文字選択・コンテキストメニューの厳格な無効化
+         ======================================================================== */
+      // マルチタッチ（2本指以上のピンチ操作）をブラウザレベルで完全にブロック
+      document.addEventListener(
+        'touchstart',
+        function (e) {
+          if (e.touches && e.touches.length > 1) {
+            e.preventDefault();
+          }
+        },
+        { passive: false }
+      );
+
+      document.addEventListener(
+        'touchmove',
+        function (e) {
+          if (e.touches && e.touches.length > 1) {
+            e.preventDefault();
+          }
+        },
+        { passive: false }
+      );
+
+      // Safari / iOS 独自の gesture イベント抑止
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (evtName) {
+        document.addEventListener(
+          evtName,
+          function (e) {
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+      });
+
+      // Ctrl + ホイール等によるPCブラウザ上のズーム抑止
+      document.addEventListener(
+        'wheel',
+        function (e) {
+          if (e.ctrlKey) {
+            e.preventDefault();
+          }
+        },
+        { passive: false }
+      );
+
+      // 長押しメニューやテキスト選択開始の抑止
+      document.addEventListener('selectstart', function (e) {
+        e.preventDefault();
+      });
+      document.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+      });
+
+      /* ========================================================================
+         2. 状態管理・初期座標設定
+         ======================================================================== */
+      // GPS未取得時の初期フォールバック座標（参考画像と同じ大阪市中央区・本町周辺）
+      const DEFAULT_COORDS = {
+        lat: 34.6815,
+        lng: 135.5015,
+      };
+      const DEFAULT_ZOOM = 16;
+
+      let currentLat = DEFAULT_COORDS.lat;
+      let currentLng = DEFAULT_COORDS.lng;
+      let hasRealGpsFix = false;
+
+      // 現在地追従フラグ（true: 自動追従中 / false: ユーザーが手動で地図をスクロール中）
+      let isFollowing = true;
+      // プログラム側での自動センタリング中かどうかを判別するフラグ
+      let isProgrammaticMove = false;
+
+      // 速度計算用の履歴データ
+      let lastFix = null; // { lat, lng, timestamp }
+      let smoothedSpeedKmh = 0;
+
+      // DOM 要素の参照
+      const speedValueEl = document.getElementById('speedValue');
+      const clockHmEl = document.getElementById('clockHm');
+      const clockSecEl = document.getElementById('clockSec');
+      const recenterBtn = document.getElementById('recenterBtn');
+      const zoomInBtn = document.getElementById('zoomInBtn');
+      const zoomOutBtn = document.getElementById('zoomOutBtn');
+
+      /* ========================================================================
+         3. Leaflet.js & OpenStreetMap 初期化
+         ======================================================================== */
+      const map = L.map('map', {
+        center: [currentLat, currentLng],
+        zoom: DEFAULT_ZOOM,
+        zoomControl: false, // 右下にカスタムボタンを配置するためデフォルトは非表示
+        touchZoom: false, // ピンチイン・ピンチアウト無効化仕様に合わせ、縮尺変更は右下ボタンに統一
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        attributionControl: true,
+      });
+
+      // OpenStreetMap 標準タイルレイヤー
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        minZoom: 3,
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+
+      // 現在地を示す青い丸アイコン
+      const locationIcon = L.divIcon({
+        className: 'current-location-marker',
+        html: '<div class="location-dot"></div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      });
+
+      const locationMarker = L.marker([currentLat, currentLng], {
+        icon: locationIcon,
+        interactive: false,
+        zIndexOffset: 1000,
+      }).addTo(map);
+
+      /* ========================================================================
+         4. 追従状態の制御と「現在地へ戻る」ボタンの表示切替
+         ======================================================================== */
+      function setFollowingState(following) {
+        if (isFollowing === following) return;
+        isFollowing = following;
+        if (isFollowing) {
+          recenterBtn.classList.remove('visible');
+        } else {
+          recenterBtn.classList.add('visible');
+        }
+      }
+
+      // ユーザーが指やマウスで地図をドラッグ（スクロール）し始めたら追従を解除
+      map.on('dragstart', function () {
+        setFollowingState(false);
+      });
+
+      // 念のためユーザー操作起因の移動開始も検知
+      map.on('movestart', function () {
+        if (!isProgrammaticMove) {
+          // ズームボタン押下時以外で中心が動いた場合
+        }
+      });
+
+      // 「現在地へ戻る」ボタン押下時の処理
+      recenterBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setFollowingState(true);
+        centerMapOnCurrentLocation(true);
+      });
+
+      // 地図を現在地へ移動するヘルパー
+      function centerMapOnCurrentLocation(animate) {
+        isProgrammaticMove = true;
+        map.setView([currentLat, currentLng], map.getZoom(), {
+          animate: Boolean(animate),
+          duration: 0.35,
+        });
+        setTimeout(function () {
+          isProgrammaticMove = false;
+        }, 400);
+      }
+
+      /* ========================================================================
+         5. 右下：縮尺変更ボタン（＋ / −）の制御
+         ======================================================================== */
+      zoomInBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isProgrammaticMove = true;
+        map.zoomIn();
+        setTimeout(function () {
+          isProgrammaticMove = false;
+        }, 300);
+      });
+
+      zoomOutBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isProgrammaticMove = true;
+        map.zoomOut();
+        setTimeout(function () {
+          isProgrammaticMove = false;
+        }, 300);
+      });
+
+      /* ========================================================================
+         6. 左下：デジタル時計の更新（100ms 間隔で秒まで正確に表示）
+         ======================================================================== */
+      function updateClock() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+
+        const hmText = hours + ':' + minutes;
+        if (clockHmEl.textContent !== hmText) {
+          clockHmEl.textContent = hmText;
+        }
+        if (clockSecEl.textContent !== seconds) {
+          clockSecEl.textContent = seconds;
+        }
+      }
+
+      updateClock();
+      setInterval(updateClock, 100);
+
+      /* ========================================================================
+         7. 速度計算（Haversine 距離 + GPS Doppler speed）& 1秒未満の高頻度GPS追跡
+         ======================================================================== */
+      function calculateHaversineMeters(lat1, lon1, lat2, lon2) {
+        const R = 6371000; // 地球の平均半径 (m)
+        const toRad = Math.PI / 180;
+        const dLat = (lat2 - lat1) * toRad;
+        const dLon = (lon2 - lon1) * toRad;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * toRad) *
+            Math.cos(lat2 * toRad) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      }
+
+      function updateSpeedDisplay(rawSpeedKmh) {
+        // 停車時のGPS微振動（ドリフト）を 0 km/h に丸める
+        const filtered = rawSpeedKmh < 1.5 ? 0 : rawSpeedKmh;
+        // 急激な数値飛びを抑えるローパスフィルタ
+        smoothedSpeedKmh = smoothedSpeedKmh * 0.35 + filtered * 0.65;
+        if (smoothedSpeedKmh < 1.0) {
+          smoothedSpeedKmh = 0;
+        }
+        // 仕様: 0〜199 km/h にクランプして整数表示
+        const displaySpeed = Math.min(199, Math.max(0, Math.round(smoothedSpeedKmh)));
+        speedValueEl.textContent = String(displaySpeed);
+      }
+
+      function handlePositionUpdate(position) {
+        const coords = position.coords;
+        const now = position.timestamp || Date.now();
+        const newLat = coords.latitude;
+        const newLng = coords.longitude;
+
+        // 1. 速度の算出（デバイス提供の coords.speed を優先し、null の場合は2点間距離と経過時間から計算）
+        let computedSpeedKmh = 0;
+        if (typeof coords.speed === 'number' && !Number.isNaN(coords.speed) && coords.speed >= 0) {
+          computedSpeedKmh = coords.speed * 3.6;
+        } else if (lastFix) {
+          const dtSec = (now - lastFix.timestamp) / 1000;
+          if (dtSec > 0.05 && dtSec < 10) {
+            const distMeters = calculateHaversineMeters(
+              lastFix.lat,
+              lastFix.lng,
+              newLat,
+              newLng
+            );
+            // GPS誤差による極端なスパイク（例: 精度以上の瞬間ワープ）を除外
+            const accuracyLimit = Math.max(coords.accuracy || 15, 10);
+            if (distMeters > accuracyLimit * 0.25) {
+              computedSpeedKmh = (distMeters / dtSec) * 3.6;
+            }
+          }
+        }
+
+        lastFix = {
+          lat: newLat,
+          lng: newLng,
+          timestamp: now,
+        };
+
+        currentLat = newLat;
+        currentLng = newLng;
+        hasRealGpsFix = true;
+
+        // 2. スピードメーター更新
+        updateSpeedDisplay(computedSpeedKmh);
+
+        // 3. マーカー位置更新
+        locationMarker.setLatLng([currentLat, currentLng]);
+
+        // 4. 追従モード中であれば地図中心を現在地へ即時追従
+        if (isFollowing) {
+          centerMapOnCurrentLocation(false);
+        }
+      }
+
+      function handlePositionError(err) {
+        // 権限拒否や屋内でのタイムアウト時もUIを崩さず待機
+        console.warn('Geolocation warning:', err.code, err.message);
+      }
+
+      // 1秒未満の単位で位置情報を取得・更新するシステム
+      function startHighFrequencyTracking() {
+        if (!('geolocation' in navigator)) {
+          return;
+        }
+
+        const geoOptions = {
+          enableHighAccuracy: true,
+          maximumAge: 0, // キャッシュを使わず常に最新の測位データを要求
+          timeout: 3000,
+        };
+
+        // ハードウェアからのプッシュ型高頻度監視
+        navigator.geolocation.watchPosition(
+          handlePositionUpdate,
+          handlePositionError,
+          geoOptions
+        );
+
+        // 端末・ブラウザによっては watchPosition の間隔が1秒以上になる場合があるため、
+        // 500ms（0.5秒）間隔でも能動的に getCurrentPosition をポーリングして1秒未満の更新を保証
+        let isPolling = false;
+        setInterval(function () {
+          if (isPolling) return;
+          isPolling = true;
+          navigator.geolocation.getCurrentPosition(
+            function (pos) {
+              isPolling = false;
+              handlePositionUpdate(pos);
+            },
+            function () {
+              isPolling = false;
+            },
+            {
+              enableHighAccuracy: true,
+              maximumAge: 0,
+              timeout: 900,
+            }
+          );
+        }, 500);
+      }
+
+      // 画面リサイズ・回転時の地図再描画
+      window.addEventListener('resize', function () {
+        map.invalidateSize();
+        if (isFollowing) {
+          centerMapOnCurrentLocation(false);
+        }
+      });
+
+      // 初期化完了後に追跡開始
+      window.addEventListener('load', function () {
+        map.invalidateSize();
+        startHighFrequencyTracking();
+      });
+    })();
+  </script>
+</body>
+</html>
