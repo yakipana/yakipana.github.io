@@ -91,8 +91,8 @@
   #needle { width: 26px; height: 26px; transition: transform .1s linear; }
 
   #recenter {
-    position: fixed; z-index: 1000; left: 12px;
-    bottom: calc(var(--panelH) + 34px);
+    position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%);
+    bottom: calc(var(--panelH) + 14px);
     border: 0; border-radius: 999px; padding: 12px 18px;
     background: #fff; color: var(--accent); font: inherit; font-weight: 700; font-size: 15px;
     box-shadow: 0 2px 10px rgba(0,0,0,.3);
@@ -107,6 +107,29 @@
     pointer-events: none; opacity: 0; transition: opacity .2s;
   }
   #toast.show { opacity: 1; }
+
+  /* 距離ゲージ(曲がる地点まで1km未満で表示) */
+  #gauge {
+    position: fixed; z-index: 900; left: 12px; width: 24px;
+    top: calc(env(safe-area-inset-top, 0px) + 112px);
+    bottom: calc(var(--panelH) + 84px);
+    background: #19c23a; border: 3px solid #fff; border-radius: 13px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35); overflow: hidden;
+  }
+  #gauge[hidden] { display: none; }
+  #gaugeFill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: #ffd60a; transition: height .3s linear; }
+  #gauge i { position: absolute; left: 0; right: 0; height: 3px; margin-bottom: -1px; background: rgba(19,33,58,.6); }
+
+  /* スピードメーター */
+  #speedo {
+    position: fixed; z-index: 1000; left: 12px; bottom: calc(var(--panelH) + 12px);
+    min-width: 62px; padding: 5px 8px 4px; text-align: center;
+    background: rgba(19,33,58,.92); color: #fff; border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  }
+  #speedo[hidden] { display: none; }
+  #speedo b { display: block; font-size: 22px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  #speedo span { font-size: 9px; opacity: .8; }
 
   /* マーカー */
   .me svg { display: block; filter: drop-shadow(0 3px 3px rgba(0,0,0,.45)); }
@@ -160,6 +183,9 @@
 </div>
 
 <button id="recenter" hidden>◎ 現在地に戻る</button>
+
+<div id="gauge" hidden aria-hidden="true"><div id="gaugeFill"></div></div>
+<div id="speedo" hidden aria-label="現在の速度"><b id="speedVal">--</b><span>km/h</span></div>
 
 <div id="tools">
   <button class="tool zoom" id="zoomIn" aria-label="拡大">＋</button>
@@ -254,6 +280,13 @@ const CONFIG = {
   voiceStages: [3000, 2000, 700, 300, 130],  // 案内タイミング(曲がり角までの距離m)。最後の値のときは「まもなく」
   followUpMaxMeters: 300,          // この距離以下の案内では「その先…」も続けて案内
   followUpNearMeters: 200,         // 次の案内地点まで200m以内なら「その先続いて」
+  finalMeters: 60,                 // この距離で「(方向)です。」の直前案内(効果音なし)
+  finalGuardMs: 3500,              // 直前の案内からこの時間以内なら、60m手前の案内は省略(被り防止)
+  finalMergeMeters: 40,            // 「まもなく」を言った地点が60m+この距離以内なら、60m手前の案内は省略
+  mergeMeters: 100,                // 出発直後・通過直後の案内が、近い案内タイミングを兼ねる幅(被り防止)
+  distStep: 100,                   // 距離は100m刻みに切り捨てて案内
+  gaugeMeters: 1000,               // この距離を切ると画面左にゲージを表示
+  gaugeTickMeters: 200,            // ゲージの目盛り間隔
   quietMeters: 3500,               // これ以上案内がなければ「しばらく、道なりです。」
 
   routeColor: "#1fd13f",           // ルート線の色(鮮やかな緑)
@@ -379,6 +412,7 @@ let routeSeq = 0;
 let lastRerouteAt = 0, routing = false, offCount = 0;
 let arrivedSpoken = false;
 let guide = { key: null, level: -1 };   // 現在の案内地点と、そこで案内済みのタイミング
+let dispSpeed = null, lastFix = null;   // スピードメーター用
 let lastSpokeAlong = 0;               // 最後に案内した時点のルート上の位置(m)
 let gpsHdg = null, hdgRef = null, lastMoveAt = 0, compassHdg = null, dispHdg = null;
 let simPos = null;
@@ -490,6 +524,41 @@ function iconSvg(key) {
 /* ============================================================
    ボタン
    ============================================================ */
+function renderGauge(d) {
+  const g = $("gauge");
+  if (d == null || d >= CONFIG.gaugeMeters) { g.hidden = true; return; }
+  g.hidden = false;
+  $("gaugeFill").style.height = clamp((1 - d / CONFIG.gaugeMeters) * 100, 0, 100) + "%";
+}
+(function buildGaugeTicks() {
+  for (let m = CONFIG.gaugeTickMeters; m < CONFIG.gaugeMeters; m += CONFIG.gaugeTickMeters) {
+    const i = document.createElement("i");
+    i.style.bottom = (1 - m / CONFIG.gaugeMeters) * 100 + "%";
+    $("gauge").appendChild(i);
+  }
+})();
+function renderSpeed() {
+  const kmh = dispSpeed === null ? null : dispSpeed * 3.6;
+  $("speedVal").textContent = kmh === null ? "--" : String(kmh < 1.5 ? 0 : Math.round(kmh));
+}
+function updateSpeedometer(speed, here, acc, now) {
+  let v = speed;                                   // m/s(端末が出す速度)
+  if (v === null) {                                // なければ位置の移動量から算出
+    if (lastFix) {
+      const dt = (now - lastFix.t) / 1000;
+      if (dt > 0.3) {
+        const d = haversine(lastFix.lat, lastFix.lng, here.lat, here.lng);
+        v = d < Math.max(2, (acc || 0) * 0.5) ? 0 : d / dt;
+        lastFix = { lat: here.lat, lng: here.lng, t: now };
+      }
+    } else {
+      lastFix = { lat: here.lat, lng: here.lng, t: now };
+    }
+  }
+  if (v !== null) dispSpeed = dispSpeed === null ? v : dispSpeed * 0.5 + v * 0.5;
+  renderSpeed();
+}
+
 function renderDest() {
   $("destName").textContent = "目的地:" + dest.name;
   destEl.title = dest.name;
@@ -541,7 +610,7 @@ $("voiceBtn").onclick = () => {
   voiceOn = !voiceOn;
   store.set("voice", voiceOn ? "1" : "0");
   renderVoiceBtn();
-  if (voiceOn) speak("音声案内をオンにしました"); else if ("speechSynthesis" in window) speechSynthesis.cancel();
+  if (voiceOn) { ensureAudio(); speak("音声案内をオンにしました"); } else stopSpeech();
 };
 renderVoiceBtn();
 
@@ -581,7 +650,7 @@ function setDestination(d, persist) {
   destMarker.setLngLat([d.lng, d.lat]);
   renderDest();
   if (persist) store.set("dest", JSON.stringify(d)); else store.del("dest");
-  route = null; offCount = 0; guide.key = null;
+  route = null; offCount = 0; guide.key = null; renderGauge(null);
   if (mapReady) map.getSource("route").setData(EMPTY_FC);
   if (navigating && lastPos) { fetchRoute(true); }
   else {
@@ -617,28 +686,90 @@ $("applySim").onclick = () => {
 /* ============================================================
    音声案内(Web Speech API)
    ============================================================ */
-function speak(text) {
-  if (!voiceOn || !("speechSynthesis" in window) || !text) return;
+/* ---- 効果音(ポーン)と読み上げ。案内同士が重ならないよう順番に再生する ---- */
+let audioCtx = null, speechGen = 0, speechBusy = false, pending = null, lastSpokeAt = 0;
+
+function ensureAudio() {
   try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "ja-JP"; u.rate = 1.0;
-    const v = speechSynthesis.getVoices().find((x) => x.lang && x.lang.toLowerCase().startsWith("ja"));
-    if (v) u.voice = v;
-    speechSynthesis.speak(u);
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
   } catch (_) {}
 }
+function playChime() {
+  return new Promise((resolve) => {
+    if (!audioCtx || audioCtx.state !== "running") return resolve();
+    try {
+      const t = audioCtx.currentTime;
+      const master = audioCtx.createGain();
+      master.gain.setValueAtTime(0.0001, t);
+      master.gain.exponentialRampToValueAtTime(0.55, t + 0.012);
+      master.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+      master.connect(audioCtx.destination);
+      [[880, 1], [1760, 0.3], [2640, 0.1]].forEach(([f, a]) => {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = "sine"; o.frequency.value = f; g.gain.value = a;
+        o.connect(g); g.connect(master);
+        o.start(t); o.stop(t + 0.85);
+      });
+      setTimeout(resolve, 700);
+    } catch (_) { resolve(); }
+  });
+}
+// opt.chime: 読み上げ前に「ポーン」を鳴らす / opt.interrupt: 再生中の音声を止めて割り込む
+function speak(text, opt = {}) {
+  if (!voiceOn || !text) return;
+  const item = { text, chime: !!opt.chime, at: Date.now(), maxWait: opt.maxWait || 8000 };
+  lastSpokeAt = item.at;
+  if (opt.interrupt) {
+    pending = null; speechGen++; speechBusy = true;
+    const g = speechGen;
+    try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch (_) {}
+    setTimeout(() => { if (g === speechGen) runSpeech(item); }, 80);
+    return;
+  }
+  pending = item;          // 待機できるのは最新の1件だけ(再生中の音声は切らない)
+  pumpSpeech();
+}
+function pumpSpeech() {
+  if (speechBusy || !pending) return;
+  const item = pending; pending = null;
+  if (Date.now() - item.at > item.maxWait) { pumpSpeech(); return; }   // 古くなった案内は捨てる
+  runSpeech(item);
+}
+function runSpeech(item) {
+  const gen = ++speechGen;
+  speechBusy = true;
+  const finish = () => { if (gen !== speechGen) return; speechBusy = false; pumpSpeech(); };
+  const talk = () => {
+    if (gen !== speechGen) return;
+    if (!("speechSynthesis" in window)) { finish(); return; }
+    try {
+      const u = new SpeechSynthesisUtterance(item.text);
+      u.lang = "ja-JP"; u.rate = 1.0;
+      const v = speechSynthesis.getVoices().find((x) => x.lang && x.lang.toLowerCase().startsWith("ja"));
+      if (v) u.voice = v;
+      u.onend = finish; u.onerror = finish;
+      speechSynthesis.speak(u);
+    } catch (_) { finish(); }
+  };
+  setTimeout(finish, 20000);       // 万一の詰まり対策
+  if (item.chime) playChime().then(talk); else talk();
+}
+function stopSpeech() {
+  speechGen++; pending = null; speechBusy = false;
+  try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch (_) {}
+}
 function spokenDist(d) {
-  const v = Math.floor(d / 50) * 50;          // 50m刻みに切り捨て
+  const v = Math.floor(d / CONFIG.distStep) * CONFIG.distStep;     // 100m刻みに切り捨て
   if (v >= 1000) {
-    const km = Math.floor(v / 1000), m = v % 1000;
-    return m ? `${km}キロ${m}メートル` : `${km}キロメートル`;
+    const km = v / 1000;
+    return (Number.isInteger(km) ? km : km.toFixed(1)) + "キロ";    // 例:1.2キロ
   }
   return `${v}メートル`;
 }
 const VOICE_DIR = {
   "left": "左方向", "right": "右方向",
-  "slight left": "やや左方向", "slight right": "やや右方向",
+  "slight left": "斜め左方向", "slight right": "斜め右方向",
   "sharp left": "大きく左方向", "sharp right": "大きく右方向",
   "uturn": "引き返す方向",
 };
@@ -668,35 +799,60 @@ function followUpText(g) {
     ? `その先続いて、${what}です。`
     : `その先、およそ${spokenDist(gap)}で、${what}です。`;
 }
-function announceGuide(g, dist, lvl, immediate, along) {
+function announceGuide(g, dist, lvl, kind, along) {
+  // kind: "immediate"(出発・通過・再検索の直後) / "stage"(案内タイミング) / "final"(60m手前)
   const what = voiceWhat(route.steps[g]);
-  const lastLvl = CONFIG.voiceStages.length - 1;
-  let text;
-  if (immediate && dist >= CONFIG.quietMeters) {
-    text = "しばらく、道なりです。";
-  } else {
-    text = (lvl === lastLvl || dist < 50) ? `まもなく、${what}です。` : `およそ${spokenDist(dist)}先、${what}です。`;
-    if (dist <= CONFIG.followUpMaxMeters) text += followUpText(g);
+  const stages = CONFIG.voiceStages;
+  if (kind === "final") {
+    if (Date.now() - lastSpokeAt < CONFIG.finalGuardMs) return;     // 直前の案内に近すぎるときは省略
+    lastSpokeAlong = along;
+    speak(`${what}です。`, { maxWait: 3000 });                       // 効果音なし。再生中の案内は切らずに順番を待つ
+    return;
   }
   lastSpokeAlong = along;
-  speak(text);
+  let text;
+  if (kind === "immediate" && dist >= CONFIG.quietMeters) {
+    text = "しばらく、道なりです。";
+  } else {
+    let d = dist;
+    if (kind === "stage" && stages[lvl] - dist <= CONFIG.distStep) d = stages[lvl];   // 区切りの距離で案内
+    text = dist <= stages[stages.length - 1]
+      ? `まもなく、${what}です。`
+      : `およそ${spokenDist(d)}先、${what}です。`;
+    const followIdx = stages.findIndex((s) => s <= CONFIG.followUpMaxMeters);
+    if (lvl >= followIdx) text += followUpText(g);
+  }
+  speak(text, { chime: true });
 }
 function guideVoice(g, along) {
   const dist = Math.max(0, route.stepStarts[g] - along);
-  const stages = CONFIG.voiceStages;
-  let lvl = -1;
-  for (let i = 0; i < stages.length; i++) if (dist <= stages[i]) lvl = i;
+  const all = [...CONFIG.voiceStages, CONFIG.finalMeters];
+  const finalIdx = all.length - 1;
+  // dist が入っている最も近いタイミング。merge=true のときは少し手前でも「入っている」とみなす
+  const levelAt = (merge) => {
+    let l = -1;
+    all.forEach((s, i) => {
+      const m = !merge ? 0 : i === finalIdx ? CONFIG.finalMergeMeters : Math.min(CONFIG.mergeMeters, s * 0.3);
+      if (dist <= s + m) l = i;
+    });
+    return l;
+  };
   const key = routeSeq + ":" + g;
   if (guide.key !== key) {
-    // 出発直後・前の案内地点を通過した直後・再検索直後は、タイミングに関係なく次の案内地点を案内
+    // 出発直後・前の案内地点を通過した直後・再検索直後は、タイミングに関係なく次を案内。
+    // 近くの案内タイミングはこの案内で済ませ、直後に同じ案内が重ならないようにする
+    const lvl = levelAt(true);
     guide.key = key; guide.level = lvl;
-    announceGuide(g, dist, lvl, true, along);
-  } else if (lvl > guide.level) {
+    announceGuide(g, dist, lvl, "immediate", along);
+    return;
+  }
+  const lvl = levelAt(false);
+  if (lvl > guide.level) {
     guide.level = lvl;
-    announceGuide(g, dist, lvl, false, along);
-  } else if (dist > stages[0] && along - lastSpokeAlong >= CONFIG.quietMeters) {
+    announceGuide(g, dist, lvl, lvl === finalIdx ? "final" : "stage", along);
+  } else if (dist > all[0] && along - lastSpokeAlong >= CONFIG.quietMeters) {
     lastSpokeAlong = along;
-    speak("しばらく、道なりです。");
+    speak("しばらく、道なりです。", { chime: true });
   }
 }
 
@@ -771,7 +927,7 @@ function tick() {
    ルート検索
    ============================================================ */
 const MOD_TEXT = {
-  "left": "左折", "right": "右折", "slight left": "左斜め方向", "slight right": "右斜め方向",
+  "left": "左折", "right": "右折", "slight left": "斜め左方向", "slight right": "斜め右方向",
   "sharp left": "鋭く左折", "sharp right": "鋭く右折", "straight": "直進", "uturn": "Uターン",
 };
 function describeStep(step) {
@@ -854,7 +1010,8 @@ function updateGuidance() {
     $("bDist").textContent = "到着しました";
     $("bText").textContent = dest.name;
     $("summary").textContent = "目的地に到着";
-    if (!arrivedSpoken) { arrivedSpoken = true; speak("目的地に到着しました"); }
+    renderGauge(null);
+    if (!arrivedSpoken) { arrivedSpoken = true; speak("目的地に到着しました", { chime: true }); }
     return;
   }
   arrivedSpoken = false;
@@ -866,7 +1023,7 @@ function updateGuidance() {
     offCount++;
     if (offCount >= CONFIG.offRouteCount) {
       const canReroute = !routing && Date.now() - lastRerouteAt >= CONFIG.rerouteIntervalMs;
-      if (canReroute) speak("ルートから外れました。再検索します");
+      if (canReroute) speak("ルートから外れました。再検索します", { chime: true });
       setStatus("ルートから外れました。再検索中…");
       fetchRoute();
     }
@@ -881,6 +1038,7 @@ function updateGuidance() {
   if (g === -1) g = route.steps.length - 1;
   const dToStep = Math.max(0, route.stepStarts[g] - snap.along);
   const next = describeStep(route.steps[g]);
+  renderGauge(dToStep);
   $("banner").hidden = false;
   $("bIcon").innerHTML = iconSvg(next.key);
   $("bDist").textContent = fmtDist(dToStep);
@@ -895,6 +1053,7 @@ function onPosition(p) {
   const c = p.coords, now = Date.now();
   const here = { lat: c.latitude, lng: c.longitude };
   const speed = typeof c.speed === "number" && !isNaN(c.speed) ? c.speed : null;
+  updateSpeedometer(speed, here, c.accuracy, now);
   const minSpeed = mode === "driving" ? 2 : 0.7;
   const thr = Math.max(mode === "driving" ? 8 : 5, (c.accuracy || 0) * 0.7);
 
@@ -974,12 +1133,15 @@ function startNav() {
   }
   navigating = true; follow = true; route = null; guide = { key: null, level: -1 }; lastSpokeAlong = 0; arrivedSpoken = false; offCount = 0;
   gpsHdg = null; hdgRef = null; dispHdg = null; lastMoveAt = 0; lastRerouteAt = 0;
+  dispSpeed = null; lastFix = null; renderSpeed();
   userZoom = CONFIG.followZoom[mode];
   setStatus(useSim ? "シミュレーションを開始しています…" : "現在地を取得しています…");
   $("startBtn").textContent = "案内を終了";
   $("startBtn").classList.add("running");
-  $("modeSeg").hidden = true;            // 案内中は車/徒歩の切り替えを隠す
+  $("modeSeg").hidden = true;
+  $("speedo").hidden = false;            // 案内中は車/徒歩の切り替えを隠す
 
+  ensureAudio();
   speak("案内を開始します");            // iOSではボタン操作の中で音声を初期化する必要がある
   if (useSim) {
     simTimer = setInterval(simStep, 500);
@@ -1000,7 +1162,7 @@ function stopNav() {
   clearInterval(tickTimer); tickTimer = null;
   clearInterval(simTimer); simTimer = null; simPos = null;
   stopCompass();
-  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  stopSpeech();
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   if (mapReady) { map.getSource("route").setData(EMPTY_FC); map.getSource("acc").setData(EMPTY_FC); }
   meMarker.remove(); meOnMap = false;
@@ -1010,6 +1172,7 @@ function stopNav() {
   $("startBtn").textContent = "ナビ開始";
   $("startBtn").classList.remove("running");
   $("modeSeg").hidden = false;
+  $("speedo").hidden = true; renderGauge(null); dispSpeed = null; lastFix = null;
   guide = { key: null, level: -1 };
   $("summary").textContent = "ナビを開始すると、ルートを表示します";
   setStatus("");
