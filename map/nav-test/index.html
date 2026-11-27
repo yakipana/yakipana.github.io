@@ -69,7 +69,7 @@
     font: inherit; font-size: 15px; font-weight: 700; padding: 10px 0;
   }
   #startBtn.running { background: #6b7587; }
-  #gmapLink { display: block; text-align: center; margin-top: 8px; font-size: 12px; color: var(--accent); }
+  .seg[hidden] { display: none; }
   button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #ffb703; outline-offset: 2px; }
 
   /* 右側ボタン群 */
@@ -187,13 +187,12 @@
   <div id="summary">ナビを開始すると、ルートを表示します</div>
   <div id="status"></div>
   <div class="row">
-    <div class="seg" role="group" aria-label="移動手段">
+    <div class="seg" id="modeSeg" role="group" aria-label="移動手段">
       <button id="modeCar" aria-pressed="true">🚗 車</button>
       <button id="modeFoot" aria-pressed="false">🚶 徒歩</button>
     </div>
     <button id="startBtn">ナビ開始</button>
   </div>
-  <a id="gmapLink" target="_blank" rel="noopener">Googleマップで開く</a>
 </div>
 
 <!-- テスト用メニュー -->
@@ -251,7 +250,11 @@ const CONFIG = {
   offRouteCount: 2,                // 外れた判定が連続でこの回数になったら再検索(GPSのブレ対策)
   rerouteIntervalMs: 10000,        // 再検索の最短間隔
   followZoom: { driving: 17, foot: 18 },
-  voiceStages: { driving: [300, 80], foot: [80, 25] },   // 音声案内する曲がり角までの距離(m)
+  // 音声案内
+  voiceStages: [3000, 2000, 700, 300, 130],  // 案内タイミング(曲がり角までの距離m)。最後の値のときは「まもなく」
+  followUpMaxMeters: 300,          // この距離以下の案内では「その先…」も続けて案内
+  followUpNearMeters: 200,         // 次の案内地点まで200m以内なら「その先続いて」
+  quietMeters: 3500,               // これ以上案内がなければ「しばらく、道なりです。」
 
   routeColor: "#1fd13f",           // ルート線の色(鮮やかな緑)
 
@@ -375,7 +378,8 @@ let route = null;
 let routeSeq = 0;
 let lastRerouteAt = 0, routing = false, offCount = 0;
 let arrivedSpoken = false;
-let spoken = {};
+let guide = { key: null, level: -1 };   // 現在の案内地点と、そこで案内済みのタイミング
+let lastSpokeAlong = 0;               // 最後に案内した時点のルート上の位置(m)
 let gpsHdg = null, hdgRef = null, lastMoveAt = 0, compassHdg = null, dispHdg = null;
 let simPos = null;
 let mapReady = false;
@@ -404,11 +408,11 @@ map.on("load", () => {
   const layout = { "line-cap": "round", "line-join": "round" };
   // 白い縁取り → 緑の本線 → 細いハイライト
   map.addLayer({ id: "route-casing", type: "line", source: "route", layout,
-    paint: { "line-color": "#ffffff", "line-width": w(7, 14, 20), "line-opacity": 0.95 } });
+    paint: { "line-color": "#ffffff", "line-width": w(9, 17, 24), "line-opacity": 0.95 } });
   map.addLayer({ id: "route-line", type: "line", source: "route", layout,
-    paint: { "line-color": CONFIG.routeColor, "line-width": w(4, 9, 14) } });
+    paint: { "line-color": CONFIG.routeColor, "line-width": w(5, 11, 17) } });
   map.addLayer({ id: "route-shine", type: "line", source: "route", layout,
-    paint: { "line-color": "#c9ffd2", "line-width": w(1, 2.5, 4), "line-opacity": 0.75 } });
+    paint: { "line-color": "#c9ffd2", "line-width": w(1.2, 3, 5), "line-opacity": 0.75 } });
   mapReady = true;
 });
 
@@ -486,22 +490,17 @@ function iconSvg(key) {
 /* ============================================================
    ボタン
    ============================================================ */
-function gmapUrl() {
-  return `https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}&travelmode=${mode === "foot" ? "walking" : "driving"}`;
-}
 function renderDest() {
   $("destName").textContent = "目的地:" + dest.name;
-  $("gmapLink").href = gmapUrl();
   destEl.title = dest.name;
 }
 renderDest();
 
 function setMode(m) {
+  if (navigating) return;          // 案内中は切り替えない
   mode = m;
   $("modeCar").setAttribute("aria-pressed", String(m === "driving"));
   $("modeFoot").setAttribute("aria-pressed", String(m === "foot"));
-  $("gmapLink").href = gmapUrl();
-  if (navigating && lastPos) { route = null; fetchRoute(true); }
 }
 $("modeCar").onclick = () => setMode("driving");
 $("modeFoot").onclick = () => setMode("foot");
@@ -582,7 +581,7 @@ function setDestination(d, persist) {
   destMarker.setLngLat([d.lng, d.lat]);
   renderDest();
   if (persist) store.set("dest", JSON.stringify(d)); else store.del("dest");
-  route = null; offCount = 0;
+  route = null; offCount = 0; guide.key = null;
   if (mapReady) map.getSource("route").setData(EMPTY_FC);
   if (navigating && lastPos) { fetchRoute(true); }
   else {
@@ -630,9 +629,12 @@ function speak(text) {
   } catch (_) {}
 }
 function spokenDist(d) {
-  if (d >= 1000) return (d / 1000).toFixed(1) + "キロメートル";
-  if (d >= 100) return Math.round(d / 50) * 50 + "メートル";
-  return Math.max(10, Math.round(d / 10) * 10) + "メートル";
+  const v = Math.floor(d / 50) * 50;          // 50m刻みに切り捨て
+  if (v >= 1000) {
+    const km = Math.floor(v / 1000), m = v % 1000;
+    return m ? `${km}キロ${m}メートル` : `${km}キロメートル`;
+  }
+  return `${v}メートル`;
 }
 const VOICE_DIR = {
   "left": "左方向", "right": "右方向",
@@ -646,18 +648,56 @@ function voiceWhat(step) {
   if (m.type === "roundabout" || m.type === "rotary") return "ロータリー";
   return VOICE_DIR[m.modifier] || null;
 }
-function maybeSpeakStep(k, dist) {
-  const what = voiceWhat(route.steps[k]);
-  if (!what) return;
-  const stages = CONFIG.voiceStages[mode];
+const isGuide = (step) => !!voiceWhat(step);   // 案内する地点(右左折・ロータリー・目的地)か
+
+// along より先にある、最初の案内地点
+function nextGuideIndex(along) {
+  for (let i = 1; i < route.steps.length; i++) {
+    if (route.stepStarts[i] > along + 1 && isGuide(route.steps[i])) return i;
+  }
+  return -1;
+}
+// 「その先…」の案内文(次の案内地点がなければ空)
+function followUpText(g) {
+  let h = -1;
+  for (let i = g + 1; i < route.steps.length; i++) if (isGuide(route.steps[i])) { h = i; break; }
+  if (h < 0) return "";
+  const what = voiceWhat(route.steps[h]);
+  const gap = route.stepStarts[h] - route.stepStarts[g];
+  return gap <= CONFIG.followUpNearMeters
+    ? `その先続いて、${what}です。`
+    : `その先、およそ${spokenDist(gap)}で、${what}です。`;
+}
+function announceGuide(g, dist, lvl, immediate, along) {
+  const what = voiceWhat(route.steps[g]);
+  const lastLvl = CONFIG.voiceStages.length - 1;
+  let text;
+  if (immediate && dist >= CONFIG.quietMeters) {
+    text = "しばらく、道なりです。";
+  } else {
+    text = (lvl === lastLvl || dist < 50) ? `まもなく、${what}です。` : `およそ${spokenDist(dist)}先、${what}です。`;
+    if (dist <= CONFIG.followUpMaxMeters) text += followUpText(g);
+  }
+  lastSpokeAlong = along;
+  speak(text);
+}
+function guideVoice(g, along) {
+  const dist = Math.max(0, route.stepStarts[g] - along);
+  const stages = CONFIG.voiceStages;
   let lvl = -1;
   for (let i = 0; i < stages.length; i++) if (dist <= stages[i]) lvl = i;
-  if (lvl < 0) return;
-  const key = routeSeq + ":" + k;
-  if ((spoken[key] ?? -1) >= lvl) return;
-  spoken[key] = lvl;
-  const last = lvl === stages.length - 1;
-  speak(last ? `まもなく、${what}です` : `${spokenDist(dist)}先、${what}です`);
+  const key = routeSeq + ":" + g;
+  if (guide.key !== key) {
+    // 出発直後・前の案内地点を通過した直後・再検索直後は、タイミングに関係なく次の案内地点を案内
+    guide.key = key; guide.level = lvl;
+    announceGuide(g, dist, lvl, true, along);
+  } else if (lvl > guide.level) {
+    guide.level = lvl;
+    announceGuide(g, dist, lvl, false, along);
+  } else if (dist > stages[0] && along - lastSpokeAlong >= CONFIG.quietMeters) {
+    lastSpokeAlong = along;
+    speak("しばらく、道なりです。");
+  }
 }
 
 /* ============================================================
@@ -791,7 +831,7 @@ async function fetchRoute(force = false) {
     let acc = 0;
     const stepStarts = steps.map((s) => { const st = acc * scale; acc += s.distance; return st; });
     route = { coords, cum, total, duration: r.duration, steps, stepStarts };
-    routeSeq++; spoken = {}; offCount = 0;
+    routeSeq++; offCount = 0;
     if (mapReady) map.getSource("route").setData({ type: "Feature", geometry: r.geometry });
     setStatus("");
     updateGuidance();
@@ -837,15 +877,15 @@ function updateGuidance() {
   const remain = Math.max(0, route.total - snap.along);
   $("summary").textContent = `残り ${fmtDist(remain)} ・ 約${fmtTime(route.duration * (remain / route.total))}`;
 
-  let k = route.stepStarts.findIndex((s, i) => i > 0 && s > snap.along + 1);
-  if (k === -1) k = route.steps.length - 1;
-  const dToStep = Math.max(0, route.stepStarts[k] - snap.along);
-  const next = describeStep(route.steps[k]);
+  let g = nextGuideIndex(snap.along);
+  if (g === -1) g = route.steps.length - 1;
+  const dToStep = Math.max(0, route.stepStarts[g] - snap.along);
+  const next = describeStep(route.steps[g]);
   $("banner").hidden = false;
   $("bIcon").innerHTML = iconSvg(next.key);
   $("bDist").textContent = fmtDist(dToStep);
   $("bText").textContent = next.text;
-  maybeSpeakStep(k, dToStep);
+  guideVoice(g, snap.along);
 }
 
 /* ============================================================
@@ -932,12 +972,13 @@ function startNav() {
     if (!("geolocation" in navigator)) { setStatus("このブラウザは位置情報に対応していません。", true); return; }
     if (!window.isSecureContext) { setStatus("位置情報の利用にはHTTPS接続が必要です。", true); return; }
   }
-  navigating = true; follow = true; route = null; spoken = {}; arrivedSpoken = false; offCount = 0;
+  navigating = true; follow = true; route = null; guide = { key: null, level: -1 }; lastSpokeAlong = 0; arrivedSpoken = false; offCount = 0;
   gpsHdg = null; hdgRef = null; dispHdg = null; lastMoveAt = 0; lastRerouteAt = 0;
   userZoom = CONFIG.followZoom[mode];
   setStatus(useSim ? "シミュレーションを開始しています…" : "現在地を取得しています…");
   $("startBtn").textContent = "案内を終了";
   $("startBtn").classList.add("running");
+  $("modeSeg").hidden = true;            // 案内中は車/徒歩の切り替えを隠す
 
   speak("案内を開始します");            // iOSではボタン操作の中で音声を初期化する必要がある
   if (useSim) {
@@ -968,6 +1009,8 @@ function stopNav() {
   $("recenter").hidden = true;
   $("startBtn").textContent = "ナビ開始";
   $("startBtn").classList.remove("running");
+  $("modeSeg").hidden = false;
+  guide = { key: null, level: -1 };
   $("summary").textContent = "ナビを開始すると、ルートを表示します";
   setStatus("");
   map.setPadding({ top: 0, left: 0, right: 0, bottom: $("panel").offsetHeight });
