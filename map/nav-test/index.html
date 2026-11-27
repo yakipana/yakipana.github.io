@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>アクセス案内</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+  :root {
+    --ink: #13213a;
+    --paper: #ffffff;
+    --route: #1f6feb;
+    --dest: #e4572e;
+    --muted: #5b6678;
+    --panelH: 200px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
+  }
+  #map { position: fixed; inset: 0; z-index: 0; }
+  /* 著作権表示を下部パネルの上に出す */
+  .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: var(--panelH) !important; }
+
+  /* 案内バナー */
+  #banner {
+    position: fixed; z-index: 1000;
+    top: calc(env(safe-area-inset-top, 0px) + 10px); left: 10px; right: 10px;
+    background: var(--ink); color: #fff;
+    border-radius: 14px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.28);
+  }
+  #banner[hidden] { display: none; }
+  #bIcon { font-size: 40px; line-height: 1; width: 48px; text-align: center; flex: none; }
+  #bDist { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  #bText { font-size: 15px; opacity: .92; margin-top: 2px; overflow-wrap: anywhere; }
+
+  /* 下部パネル */
+  #panel {
+    position: fixed; z-index: 1000; left: 0; right: 0; bottom: 0;
+    background: var(--paper);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -4px 16px rgba(0,0,0,.18);
+    padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  }
+  #destName { font-size: 13px; color: var(--muted); }
+  #summary { font-size: 22px; font-weight: 700; margin: 2px 0 4px; }
+  #status { font-size: 13px; color: var(--muted); min-height: 1.3em; }
+  #status.error { color: #b3261e; }
+  .row { display: flex; gap: 8px; margin-top: 10px; }
+  .seg { display: flex; flex: 1; border: 1.5px solid var(--ink); border-radius: 10px; overflow: hidden; }
+  .seg button {
+    flex: 1; border: 0; background: #fff; color: var(--ink);
+    font: inherit; font-size: 16px; font-weight: 600; padding: 12px 0;
+  }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  #startBtn {
+    flex: 1.1; border: 0; border-radius: 10px;
+    background: var(--route); color: #fff;
+    font: inherit; font-size: 16px; font-weight: 700; padding: 12px 0;
+  }
+  #startBtn.running { background: #6b7587; }
+  #gmapLink { display: block; text-align: center; margin-top: 10px; font-size: 13px; color: var(--route); }
+  button:focus-visible, a:focus-visible { outline: 3px solid #ffb703; outline-offset: 2px; }
+
+  /* 右側ボタン群 */
+  #tools {
+    position: fixed; z-index: 1000; right: 12px;
+    bottom: calc(var(--panelH) + 34px);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .tool {
+    width: 52px; border: 0; border-radius: 12px; background: #fff; color: var(--ink);
+    box-shadow: 0 2px 10px rgba(0,0,0,.3);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font: inherit; padding: 6px 0;
+  }
+  .tool.zoom { height: 46px; font-size: 28px; line-height: 1; font-weight: 500; }
+  .tool.labeled { height: 58px; }
+  .tool .cap { font-size: 10px; margin-top: 2px; font-weight: 600; }
+  .tool .ico { font-size: 22px; line-height: 1; }
+  #needle { width: 26px; height: 26px; transition: transform .1s linear; }
+
+  /* 現在地へ戻る */
+  #recenter {
+    position: fixed; z-index: 1000; left: 12px;
+    bottom: calc(var(--panelH) + 34px);
+    border: 0; border-radius: 999px; padding: 12px 18px;
+    background: #fff; color: var(--route); font: inherit; font-weight: 700; font-size: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  }
+  #recenter[hidden] { display: none; }
+
+  /* 通知 */
+  #toast {
+    position: fixed; z-index: 1100; left: 50%; transform: translateX(-50%);
+    bottom: calc(var(--panelH) + 92px);
+    background: rgba(19,33,58,.92); color: #fff; font-size: 14px;
+    padding: 9px 16px; border-radius: 999px; max-width: 80vw; text-align: center;
+    pointer-events: none; opacity: 0; transition: opacity .2s;
+  }
+  #toast.show { opacity: 1; }
+
+  /* マーカー */
+  .me svg { display: block; }
+  .dest svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.4)); }
+</style>
+</head>
+<body>
+<div id="map" aria-label="地図"></div>
+
+<div id="banner" hidden aria-live="polite">
+  <div id="bIcon">↑</div>
+  <div>
+    <div id="bDist"></div>
+    <div id="bText"></div>
+  </div>
+</div>
+
+<button id="recenter" hidden>◎ 現在地に戻る</button>
+
+<div id="tools">
+  <button class="tool zoom" id="zoomIn" aria-label="拡大">＋</button>
+  <button class="tool zoom" id="zoomOut" aria-label="縮小">－</button>
+  <button class="tool labeled" id="orientBtn">
+    <svg id="needle" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2 L17 13 L7 13 Z" fill="#d8352a"/>
+      <path d="M12 22 L17 13 L7 13 Z" fill="#8b94a5"/>
+    </svg>
+    <span class="cap" id="orientCap">進行方向</span>
+  </button>
+  <button class="tool labeled" id="voiceBtn">
+    <span class="ico" id="voiceIco">🔊</span>
+    <span class="cap" id="voiceCap">音声</span>
+  </button>
+</div>
+
+<div id="toast"></div>
+
+<div id="panel">
+  <div id="destName"></div>
+  <div id="summary">ナビを開始すると、現在地からのルートを表示します</div>
+  <div id="status"></div>
+  <div class="row">
+    <div class="seg" role="group" aria-label="移動手段">
+      <button id="modeCar" aria-pressed="true">🚗 車</button>
+      <button id="modeFoot" aria-pressed="false">🚶 徒歩</button>
+    </div>
+    <button id="startBtn">ナビ開始</button>
+  </div>
+  <a id="gmapLink" target="_blank" rel="noopener">Googleマップで開く</a>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+/* ============================================================
+   設定(ここだけ書き換えればOK)
+   ============================================================ */
+const CONFIG = {
+  // 目的地(緯度・経度をここに仕込む)
+  destination: { name: "イベント会場(サンプル:大阪駅)", lat: 34.70248, lng: 135.49595 },
+
+  defaultMode: "driving",          // "driving"(車) か "foot"(徒歩)
+  defaultOrientation: "heading",   // "heading"(進行方向が上) か "north"(北が上)
+  arriveMeters: 30,                // 目的地までこの距離以内で「到着」
+  offRouteMeters: { driving: 50, foot: 30 },  // ルートからこれ以上離れたら再検索
+  rerouteIntervalMs: 10000,        // 再検索の最短間隔
+  followZoom: { driving: 17, foot: 18 },
+
+  // 音声案内を出す「曲がり角までの距離(m)」。大きい順に指定
+  voiceStages: { driving: [300, 80], foot: [80, 25] },
+
+  tileUrl: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  tileAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+
+  // ルート検索サーバ(OSM Germany公開サーバ。大規模運用時は自前OSRM等に変更推奨)
+  routers: {
+    driving: "https://routing.openstreetmap.de/routed-car/route/v1/driving/",
+    foot:    "https://routing.openstreetmap.de/routed-foot/route/v1/foot/",
+  },
+};
+
+/* ============================================================
+   小物
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+const dest = CONFIG.destination;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("navi." + k); return v === null ? d : v; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem("navi." + k, v); } catch (_) {} },
+};
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r, dLng = (lng2 - lng1) * r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+function bearingDeg(a, b) {
+  const r = Math.PI / 180;
+  const y = Math.sin((b.lng - a.lng) * r) * Math.cos(b.lat * r);
+  const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lng - a.lng) * r);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+function smoothAngle(cur, target, k) {
+  if (cur == null) return target;
+  const d = ((target - cur + 540) % 360) - 180;
+  return (cur + d * k + 360) % 360;
+}
+function fmtDist(m) {
+  if (m >= 1000) return (m / 1000).toFixed(m >= 10000 ? 0 : 1) + " km";
+  return Math.max(0, Math.round(m / 10) * 10) + " m";
+}
+function fmtTime(sec) {
+  const min = Math.max(1, Math.round(sec / 60));
+  if (min < 60) return min + "分";
+  return Math.floor(min / 60) + "時間" + (min % 60 ? (min % 60) + "分" : "");
+}
+function circlePoly(lng, lat, r) {
+  const kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110540, pts = [];
+  for (let i = 0; i <= 48; i++) {
+    const a = (i / 48) * 2 * Math.PI;
+    pts.push([lng + (Math.cos(a) * r) / kx, lat + (Math.sin(a) * r) / ky]);
+  }
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [pts] } };
+}
+const EMPTY_FC = { type: "FeatureCollection", features: [] };
+
+let toastTimer = null;
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+}
+function setStatus(msg, isError = false) {
+  $("status").textContent = msg || "";
+  $("status").classList.toggle("error", !!isError);
+}
+
+/* ============================================================
+   状態
+   ============================================================ */
+let mode = CONFIG.defaultMode;
+let orient = store.get("orient", CONFIG.defaultOrientation);   // "heading" | "north"
+let voiceOn = store.get("voice", "1") === "1";
+let navigating = false;
+let watchId = null, tickTimer = null, wakeLock = null;
+let follow = true, interacting = false;
+let userZoom = 16;
+let lastPos = null;              // {lat, lng, acc}
+let route = null;
+let routeSeq = 0;
+let lastRerouteAt = 0, routing = false;
+let arrivedSpoken = false;
+let spoken = {};                 // 音声案内の発話済み管理
+let gpsHdg = null, hdgRef = null, lastMoveAt = 0, compassHdg = null, dispHdg = null;
+let mapReady = false;
+
+/* ============================================================
+   地図(MapLibre GL:回転に対応)
+   ============================================================ */
+const map = new maplibregl.Map({
+  container: "map",
+  style: {
+    version: 8,
+    sources: { osm: { type: "raster", tiles: [CONFIG.tileUrl], tileSize: 256, maxzoom: 19, attribution: CONFIG.tileAttribution } },
+    layers: [{ id: "osm", type: "raster", source: "osm" }],
+  },
+  center: [dest.lng, dest.lat], zoom: 16, minZoom: 3, maxZoom: 19,
+  dragRotate: false, pitchWithRotate: false, maxPitch: 0, attributionControl: false,
+});
+map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
+map.touchZoomRotate.disableRotation();
+
+map.on("load", () => {
+  map.addSource("acc", { type: "geojson", data: EMPTY_FC });
+  map.addLayer({ id: "acc-fill", type: "fill", source: "acc", paint: { "fill-color": "#1f6feb", "fill-opacity": 0.12 } });
+  map.addSource("route", { type: "geojson", data: EMPTY_FC });
+  map.addLayer({ id: "route-casing", type: "line", source: "route",
+    layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": 12, "line-opacity": 0.9 } });
+  map.addLayer({ id: "route-line", type: "line", source: "route",
+    layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#1f6feb", "line-width": 7 } });
+  mapReady = true;
+});
+
+// 目的地ピン
+const destEl = document.createElement("div");
+destEl.className = "dest";
+destEl.title = dest.name;
+destEl.innerHTML = '<svg width="32" height="42" viewBox="0 0 32 42"><path d="M16 1C7.7 1 1 7.6 1 15.6 1 26.6 16 41 16 41s15-14.400 15-25.400C31 7.600 24.300 1 16 1z" fill="#e4572e" stroke="#fff" stroke-width="2"/><circle cx="16" cy="15.500" r="5.500" fill="#fff"/></svg>';
+new maplibregl.Marker({ element: destEl, anchor: "bottom" }).setLngLat([dest.lng, dest.lat]).addTo(map);
+
+// 現在地マーカー(向き付き)
+const meEl = document.createElement("div");
+meEl.className = "me";
+meEl.innerHTML = '<svg id="meSvg" width="52" height="52" viewBox="-26 -26 52 52">' +
+  '<path id="meArrow" d="M0,-24 L11,-4 L0,-9 L-11,-4 Z" fill="#1f6feb" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>' +
+  '<circle r="9" fill="#1f6feb" stroke="#fff" stroke-width="3"/></svg>';
+const meMarker = new maplibregl.Marker({ element: meEl, anchor: "center" });
+let meOnMap = false;
+
+// 画面レイアウトの寸法
+function syncPanelH() { document.documentElement.style.setProperty("--panelH", $("panel").offsetHeight + "px"); }
+new ResizeObserver(syncPanelH).observe($("panel"));
+syncPanelH();
+function viewPadding() {
+  const bannerH = $("banner").hidden ? 0 : $("banner").offsetHeight + 20;
+  const extra = orient === "heading" ? Math.round(window.innerHeight * 0.25) : 0; // 進行方向が上のときは自分を下寄りに
+  return { top: bannerH + extra, bottom: $("panel").offsetHeight, left: 0, right: 0 };
+}
+map.setPadding({ top: 0, left: 0, right: 0, bottom: $("panel").offsetHeight });
+
+/* ユーザー操作の検知 */
+map.on("dragstart", (e) => {
+  interacting = true;
+  const oe = e.originalEvent;
+  if (navigating && !(oe && oe.touches && oe.touches.length > 1)) {
+    follow = false;
+    $("recenter").hidden = false;
+  }
+});
+map.on("dragend", () => { interacting = false; });
+map.on("zoomstart", (e) => { if (e.originalEvent) interacting = true; });
+map.on("zoomend", () => { if (interacting) { userZoom = map.getZoom(); interacting = false; } });
+map.on("rotate", updateRotationUI);
+
+function updateRotationUI() {
+  $("needle").style.transform = `rotate(${-map.getBearing()}deg)`;
+  const svg = $("meSvg");
+  if (svg) {
+    svg.style.transform = `rotate(${(dispHdg == null ? 0 : dispHdg) - map.getBearing()}deg)`;
+    $("meArrow").style.opacity = dispHdg == null ? 0 : 1;
+  }
+}
+
+/* ============================================================
+   ボタン
+   ============================================================ */
+function gmapUrl() {
+  return `https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}&travelmode=${mode === "foot" ? "walking" : "driving"}`;
+}
+$("destName").textContent = "目的地:" + dest.name;
+$("gmapLink").href = gmapUrl();
+
+function setMode(m) {
+  mode = m;
+  $("modeCar").setAttribute("aria-pressed", String(m === "driving"));
+  $("modeFoot").setAttribute("aria-pressed", String(m === "foot"));
+  $("gmapLink").href = gmapUrl();
+  if (navigating && lastPos) { route = null; fetchRoute(true); }
+}
+$("modeCar").onclick = () => setMode("driving");
+$("modeFoot").onclick = () => setMode("foot");
+$("startBtn").onclick = () => (navigating ? stopNav() : startNav());
+
+$("recenter").onclick = () => {
+  follow = true;
+  $("recenter").hidden = true;
+  tick();
+};
+
+// 拡大・縮小
+function zoomBy(d) {
+  const base = navigating && follow ? userZoom : map.getZoom();
+  userZoom = clamp(base + d, 3, 19);
+  if (!(navigating && follow)) map.easeTo({ zoom: userZoom, duration: 250 });
+  else tick();
+}
+$("zoomIn").onclick = () => zoomBy(1);
+$("zoomOut").onclick = () => zoomBy(-1);
+
+// 進行方向が上 / 北が上 の切り替え
+function renderOrientBtn() {
+  $("orientCap").textContent = orient === "heading" ? "進行方向" : "北固定";
+  $("orientBtn").setAttribute("aria-label", orient === "heading" ? "地図の向き:進行方向が上(押すと北が上)" : "地図の向き:北が上(押すと進行方向が上)");
+}
+function setOrient(o, announce = true) {
+  orient = o;
+  store.set("orient", o);
+  renderOrientBtn();
+  if (announce) toast(o === "heading" ? "進行方向が上" : "北が上");
+  if (navigating && follow) tick();
+  else map.easeTo({ bearing: o === "north" || dispHdg == null ? 0 : dispHdg, duration: 400 });
+}
+$("orientBtn").onclick = () => setOrient(orient === "heading" ? "north" : "heading");
+renderOrientBtn();
+
+// 音声のオン・オフ
+function renderVoiceBtn() {
+  $("voiceIco").textContent = voiceOn ? "🔊" : "🔇";
+  $("voiceCap").textContent = voiceOn ? "音声あり" : "音声なし";
+  $("voiceBtn").setAttribute("aria-pressed", String(voiceOn));
+}
+$("voiceBtn").onclick = () => {
+  voiceOn = !voiceOn;
+  store.set("voice", voiceOn ? "1" : "0");
+  renderVoiceBtn();
+  if (voiceOn) speak("音声案内をオンにしました"); else if ("speechSynthesis" in window) speechSynthesis.cancel();
+};
+renderVoiceBtn();
+
+/* ============================================================
+   音声案内(Web Speech API)
+   ============================================================ */
+function speak(text) {
+  if (!voiceOn || !("speechSynthesis" in window) || !text) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "ja-JP"; u.rate = 1.0;
+    const v = speechSynthesis.getVoices().find((x) => x.lang && x.lang.toLowerCase().startsWith("ja"));
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  } catch (_) {}
+}
+function spokenDist(d) {
+  if (d >= 1000) return (d / 1000).toFixed(1) + "キロメートル";
+  if (d >= 100) return Math.round(d / 50) * 50 + "メートル";
+  return Math.max(10, Math.round(d / 10) * 10) + "メートル";
+}
+const VOICE_DIR = {
+  "left": "左方向", "right": "右方向",
+  "slight left": "やや左方向", "slight right": "やや右方向",
+  "sharp left": "大きく左方向", "sharp right": "大きく右方向",
+  "uturn": "引き返す方向",
+};
+function voiceWhat(step) {
+  const m = step.maneuver || {};
+  if (m.type === "arrive") return "目的地";
+  if (m.type === "roundabout" || m.type === "rotary") return "ロータリー";
+  return VOICE_DIR[m.modifier] || null;     // 直進などは案内しない
+}
+function maybeSpeakStep(k, dist) {
+  const what = voiceWhat(route.steps[k]);
+  if (!what) return;
+  const stages = CONFIG.voiceStages[mode];
+  let lvl = -1;
+  for (let i = 0; i < stages.length; i++) if (dist <= stages[i]) lvl = i;
+  if (lvl < 0) return;
+  const key = routeSeq + ":" + k;
+  if ((spoken[key] ?? -1) >= lvl) return;
+  spoken[key] = lvl;
+  const last = lvl === stages.length - 1;
+  speak(last ? `まもなく、${what}です` : `${spokenDist(dist)}先、${what}です`);
+}
+
+/* ============================================================
+   方位(コンパス+GPS)
+   ============================================================ */
+function headingFromEuler(alpha, beta, gamma) {   // 端末の背面が向いている方位
+  const r = Math.PI / 180, x = beta * r, y = gamma * r, z = alpha * r;
+  const cY = Math.cos(y), cZ = Math.cos(z), sX = Math.sin(x), sY = Math.sin(y), sZ = Math.sin(z);
+  const Vx = -cZ * sY - sZ * sX * cY;
+  const Vy = -sZ * sY + cZ * sX * cY;
+  let h = Math.atan(Vx / Vy);
+  if (Vy < 0) h += Math.PI; else if (Vx < 0) h += 2 * Math.PI;
+  return (h * 180) / Math.PI;
+}
+function onOrient(e) {
+  let h = null;
+  if (typeof e.webkitCompassHeading === "number" && !isNaN(e.webkitCompassHeading)) {
+    h = e.webkitCompassHeading;                                   // iOS
+  } else if ((e.type === "deviceorientationabsolute" || e.absolute === true) &&
+             e.alpha != null && e.beta != null && e.gamma != null) {
+    h = headingFromEuler(e.alpha, e.beta, e.gamma);               // Android
+  }
+  if (h == null) return;
+  const ang = screen.orientation && typeof screen.orientation.angle === "number" ? screen.orientation.angle : (window.orientation || 0);
+  compassHdg = (h + ang + 360) % 360;
+}
+function startCompass() {
+  if (typeof DeviceOrientationEvent === "undefined") return;
+  const attach = () => {
+    window.addEventListener("deviceorientationabsolute", onOrient, true);
+    window.addEventListener("deviceorientation", onOrient, true);
+  };
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {   // iOS 13+
+    DeviceOrientationEvent.requestPermission()
+      .then((r) => { if (r === "granted") attach(); else toast("コンパスが使えないため、移動中のGPSの向きを使います"); })
+      .catch(() => {});
+  } else {
+    attach();
+  }
+}
+function stopCompass() {
+  window.removeEventListener("deviceorientationabsolute", onOrient, true);
+  window.removeEventListener("deviceorientation", onOrient, true);
+  compassHdg = null;
+}
+// 表示に使う向きを選ぶ
+function pickHeading() {
+  const moving = Date.now() - lastMoveAt < 4000;
+  if (mode === "driving") {
+    // 車:スマホの向き≠車の向きになりやすいので、GPSの進行方向を優先
+    return gpsHdg != null ? gpsHdg : compassHdg;
+  }
+  // 徒歩:歩いている間はGPS、止まっている間はコンパス
+  if (moving && gpsHdg != null) return gpsHdg;
+  if (compassHdg != null) return compassHdg;
+  return gpsHdg;
+}
+
+/* 一定間隔で向きを滑らかに反映し、地図を追従させる */
+function tick() {
+  if (!navigating) return;
+  const h = pickHeading();
+  if (h != null) dispHdg = smoothAngle(dispHdg, h, 0.3);
+  updateRotationUI();
+  if (follow && lastPos && !interacting) {
+    map.easeTo({
+      center: [lastPos.lng, lastPos.lat],
+      bearing: orient === "heading" && dispHdg != null ? dispHdg : 0,
+      zoom: userZoom,
+      padding: viewPadding(),
+      duration: 200, easing: (t) => t, essential: true,
+    });
+  }
+}
+
+/* ============================================================
+   ルート検索
+   ============================================================ */
+const MOD_TEXT = {
+  "left": "左折", "right": "右折", "slight left": "左斜め方向", "slight right": "右斜め方向",
+  "sharp left": "鋭く左折", "sharp right": "鋭く右折", "straight": "直進", "uturn": "Uターン",
+};
+const MOD_ICON = {
+  "left": "↰", "right": "↱", "slight left": "↖", "slight right": "↗",
+  "sharp left": "↰", "sharp right": "↱", "straight": "↑", "uturn": "↶",
+};
+function describeStep(step) {
+  const m = step.maneuver || {}, mod = m.modifier;
+  const name = step.name ? `(${step.name})` : "";
+  let text, icon = MOD_ICON[mod] || "↑";
+  switch (m.type) {
+    case "depart": text = "出発"; icon = "▶"; break;
+    case "arrive": text = "目的地に到着"; icon = "⚑"; break;
+    case "roundabout": case "rotary": text = "ロータリーに入り" + (m.exit ? m.exit + "番目の出口へ" : "進む"); icon = "⟳"; break;
+    case "roundabout turn": text = "ロータリーで" + (MOD_TEXT[mod] || "進む"); break;
+    case "fork": text = "分岐を" + (mod && mod.includes("left") ? "左" : mod && mod.includes("right") ? "右" : "") + "へ"; break;
+    case "merge": text = "合流"; break;
+    case "on ramp": text = "進入路へ"; break;
+    case "off ramp": text = "出口へ"; break;
+    case "end of road": text = "突き当たりを" + (mod && mod.includes("left") ? "左" : "右") + "へ"; break;
+    case "continue": text = mod && mod !== "straight" ? MOD_TEXT[mod] : "直進"; break;
+    default: text = MOD_TEXT[mod] || "直進";
+  }
+  return { icon, text: text + (m.type === "arrive" ? "" : name) };
+}
+
+function snapToRoute(lat, lng) {
+  const kx = Math.cos((lat * Math.PI) / 180) * 111320, ky = 110540, c = route.coords;
+  let best = { off: Infinity, along: 0 };
+  for (let i = 0; i < c.length - 1; i++) {
+    const ax = (c[i][1] - lng) * kx, ay = (c[i][0] - lat) * ky;
+    const bx = (c[i + 1][1] - lng) * kx, by = (c[i + 1][0] - lat) * ky;
+    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+    let t = len2 ? -(ax * dx + ay * dy) / len2 : 0;
+    t = clamp(t, 0, 1);
+    const d = Math.hypot(ax + t * dx, ay + t * dy);
+    if (d < best.off) best = { off: d, along: route.cum[i] + t * (route.cum[i + 1] - route.cum[i]) };
+  }
+  return best;
+}
+
+async function fetchRoute(force = false) {
+  if (!lastPos || routing) return;
+  const now = Date.now();
+  if (!force && now - lastRerouteAt < CONFIG.rerouteIntervalMs) return;
+  routing = true; lastRerouteAt = now;
+  setStatus("ルートを検索しています…");
+  const url = `${CONFIG.routers[mode]}${lastPos.lng},${lastPos.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson&steps=true&alternatives=false`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (data.code !== "Ok" || !data.routes || !data.routes.length) throw new Error(data.code || "no route");
+    const r = data.routes[0];
+    const coords = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+    const cum = [0];
+    for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + haversine(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]));
+    const total = cum[cum.length - 1] || 1;
+    const steps = r.legs.flatMap((l) => l.steps);
+    const scale = total / (r.distance || total);
+    let acc = 0;
+    const stepStarts = steps.map((s) => { const st = acc * scale; acc += s.distance; return st; });
+    route = { coords, cum, total, duration: r.duration, steps, stepStarts };
+    routeSeq++; spoken = {};
+    if (mapReady) map.getSource("route").setData({ type: "Feature", geometry: r.geometry });
+    setStatus("");
+    updateGuidance();
+  } catch (e) {
+    setStatus("ルートを取得できませんでした(" + e.message + ")。通信状況を確認してください。", true);
+  } finally {
+    routing = false;
+  }
+}
+
+/* ============================================================
+   案内の更新
+   ============================================================ */
+function updateGuidance() {
+  if (!lastPos) return;
+  const straight = haversine(lastPos.lat, lastPos.lng, dest.lat, dest.lng);
+  if (straight <= CONFIG.arriveMeters) {
+    $("banner").hidden = false;
+    $("bIcon").textContent = "⚑";
+    $("bDist").textContent = "到着しました";
+    $("bText").textContent = dest.name;
+    $("summary").textContent = "目的地に到着";
+    if (!arrivedSpoken) { arrivedSpoken = true; speak("目的地に到着しました"); }
+    return;
+  }
+  arrivedSpoken = false;
+  if (!route) return;
+
+  const snap = snapToRoute(lastPos.lat, lastPos.lng);
+  const limit = Math.max(CONFIG.offRouteMeters[mode], lastPos.acc || 0);
+  if (snap.off > limit) {
+    if (!routing && Date.now() - lastRerouteAt >= CONFIG.rerouteIntervalMs) speak("ルートから外れました。再検索します");
+    setStatus("ルートから外れました。再検索中…");
+    fetchRoute();
+    return;
+  }
+
+  const remain = Math.max(0, route.total - snap.along);
+  $("summary").textContent = `残り ${fmtDist(remain)}・約${fmtTime(route.duration * (remain / route.total))}`;
+
+  let k = route.stepStarts.findIndex((s, i) => i > 0 && s > snap.along + 1);
+  if (k === -1) k = route.steps.length - 1;
+  const dToStep = Math.max(0, route.stepStarts[k] - snap.along);
+  const next = describeStep(route.steps[k]);
+  $("banner").hidden = false;
+  $("bIcon").textContent = next.icon;
+  $("bDist").textContent = fmtDist(dToStep);
+  $("bText").textContent = next.text;
+  maybeSpeakStep(k, dToStep);
+}
+
+/* ============================================================
+   位置情報
+   ============================================================ */
+function onPosition(p) {
+  const c = p.coords, now = Date.now();
+  const here = { lat: c.latitude, lng: c.longitude };
+  const speed = typeof c.speed === "number" && !isNaN(c.speed) ? c.speed : null;
+  const minSpeed = mode === "driving" ? 2 : 0.7;
+  const thr = Math.max(mode === "driving" ? 8 : 5, (c.accuracy || 0) * 0.7);
+
+  // GPSによる進行方向(端末が出す heading → なければ移動ベクトルから算出)
+  if (typeof c.heading === "number" && !isNaN(c.heading) && speed !== null && speed >= minSpeed) {
+    gpsHdg = c.heading; lastMoveAt = now; hdgRef = here;
+  } else if (!hdgRef) {
+    hdgRef = here;
+  } else if (haversine(hdgRef.lat, hdgRef.lng, here.lat, here.lng) >= thr) {
+    gpsHdg = bearingDeg(hdgRef, here); lastMoveAt = now; hdgRef = here;
+  }
+
+  lastPos = { lat: here.lat, lng: here.lng, acc: c.accuracy };
+  meMarker.setLngLat([here.lng, here.lat]);
+  if (!meOnMap) { meMarker.addTo(map); meOnMap = true; }
+  if (mapReady) map.getSource("acc").setData(circlePoly(here.lng, here.lat, c.accuracy || 0));
+
+  if (!route) { setStatus(""); fetchRoute(true); } else { updateGuidance(); }
+  tick();
+}
+function onPositionError(err) {
+  const msg = {
+    1: "位置情報の利用が許可されていません。ブラウザの設定で許可してください。",
+    2: "現在地を取得できません。電波の良い場所でお試しください。",
+    3: "現在地の取得に時間がかかっています…",
+  }[err.code] || "位置情報エラー";
+  setStatus(msg, err.code === 1);
+  if (err.code === 1) stopNav();
+}
+
+async function keepAwake() {
+  try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (_) {}
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && navigating) keepAwake();
+});
+
+function startNav() {
+  if (!("geolocation" in navigator)) { setStatus("このブラウザは位置情報に対応していません。", true); return; }
+  if (!window.isSecureContext) { setStatus("位置情報の利用にはHTTPS接続が必要です。", true); return; }
+  navigating = true; follow = true; route = null; spoken = {}; arrivedSpoken = false;
+  gpsHdg = null; hdgRef = null; dispHdg = null; lastMoveAt = 0;
+  userZoom = CONFIG.followZoom[mode];
+  setStatus("現在地を取得しています…");
+  $("startBtn").textContent = "案内を終了";
+  $("startBtn").classList.add("running");
+
+  // iOSでは、音声の初期化とコンパス許可はこのボタン操作の中で行う必要がある
+  speak("案内を開始します");
+  startCompass();
+
+  watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+    enableHighAccuracy: true, maximumAge: 1000, timeout: 20000,
+  });
+  tickTimer = setInterval(tick, 150);
+  keepAwake();
+}
+function stopNav() {
+  navigating = false;
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null;
+  clearInterval(tickTimer); tickTimer = null;
+  stopCompass();
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+  if (mapReady) { map.getSource("route").setData(EMPTY_FC); map.getSource("acc").setData(EMPTY_FC); }
+  meMarker.remove(); meOnMap = false;
+  route = null; lastPos = null; dispHdg = null;
+  $("banner").hidden = true;
+  $("recenter").hidden = true;
+  $("startBtn").textContent = "ナビ開始";
+  $("startBtn").classList.remove("running");
+  $("summary").textContent = "ナビを開始すると、現在地からのルートを表示します";
+  setStatus("");
+  map.setPadding({ top: 0, left: 0, right: 0, bottom: $("panel").offsetHeight });
+  map.easeTo({ center: [dest.lng, dest.lat], zoom: 16, bearing: 0, duration: 500 });
+}
+
+// 音声リストの読み込み(ブラウザによっては非同期)
+if ("speechSynthesis" in window) speechSynthesis.getVoices();
+</script>
+</body>
+</html>
