@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GPS Speedometer Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["'Hiragino Kaku Gothic ProN'", "'Hiragino Sans'", "'Yu Gothic'", "'Meiryo'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "'Helvetica Neue'", "Arial", "sans-serif"],
+                    },
+                    colors: {
+                        cockpit: {
+                            bg: '#090b10',
+                            panel: '#121620',
+                            border: '#1e2536',
+                            accent: 'var(--accent-color)',
+                            danger: '#ff2a55',
+                            warning: '#ffb800',
+                            success: '#00e676'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* カスタマイズ可能なキーカラーCSS変数 */
+        :root {
+            --accent-color: #00d4ff;
+            --accent-rgb: 0, 212, 255;
+        }
+
+        /* カスタムスタイルとスクロール防止・タッチ最適化 */
+        html, body {
+            overscroll-behavior: none;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #090b10;
+            color: #f8fafc;
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
+            font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* 数値専用のArialフォントと等幅数字設定 */
+        .font-num {
+            font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* デジタル速度表示のサイズと3桁分の固定幅・右寄せ設定 */
+        .digital-speed-text {
+            font-size: clamp(2.4rem, 9vw, 3.4rem);
+            line-height: 1.05;
+            display: inline-block;
+            width: 3.1ch;
+            text-align: right;
+        }
+        @media (orientation: landscape) {
+            .digital-speed-text {
+                font-size: clamp(2.2rem, 6.5vh, 3.2rem);
+            }
+        }
+
+        /* デジタル数字の発光エフェクト（選択中のキーカラーに連動） */
+        .glow-accent {
+            text-shadow: 0 0 14px rgba(var(--accent-rgb), 0.45), 0 0 28px rgba(var(--accent-rgb), 0.15);
+        }
+
+        /* カーボン調の微細背景パターン */
+        .bg-cockpit-pattern {
+            background-color: #090b10;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+            background-size: 16px 16px;
+        }
+
+        /* カスタムレンジスライダー（シミュレーション用） */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 22px;
+            width: 22px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.8);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #1e2536;
+            border-radius: 999px;
+        }
+
+        /* カラーピッカー入力のスタイル調整 */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            padding: 0;
+            background: none;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid #334155;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-cockpit-pattern flex flex-col justify-between relative font-sans">
+
+    <!-- 右上：設定ボタン＆ステータスバッジ -->
+    <header class="fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 pointer-events-none">
+        <!-- GPSステータス表示 -->
+        <div id="gpsStatusBadge" class="pointer-events-auto flex items-center gap-2 bg-cockpit-panel/90 backdrop-blur-md border border-cockpit-border px-3 py-1.5 rounded-full shadow-lg">
+            <span id="gpsDot" class="w-2.5 h-2.5 rounded-full bg-cockpit-warning animate-pulse"></span>
+            <span id="gpsStatusText" class="text-xs font-medium text-slate-300 tracking-wide">GPS待機中...</span>
+            <span id="gpsAccuracy" class="text-[11px] font-num text-slate-400 hidden sm:inline"></span>
+        </div>
+
+        <!-- 右上設定ボタン -->
+        <button id="openSettingsBtn" aria-label="設定を開く" class="pointer-events-auto p-3 rounded-full bg-cockpit-panel/90 hover:bg-slate-800 active:scale-95 backdrop-blur-md border border-cockpit-border text-slate-200 hover:text-[var(--accent-color)] transition-all shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </button>
+    </header>
+
+    <!-- メインコックピットエリア（縦画面：上下分割 / 横画面：左右分割） -->
+    <main class="w-full h-full flex flex-col landscape:flex-row items-center justify-between pt-14 pb-3 px-3 sm:px-5 landscape:pt-3 landscape:pb-3 gap-3 overflow-hidden">
+        
+        <!-- アナログスピードメーター領域（縦：上 / 横：左） -->
+        <section id="analogContainer" class="w-full flex-1 min-h-0 landscape:w-1/2 landscape:h-full flex items-center justify-center relative">
+            <canvas id="speedometerCanvas" class="w-full h-full block"></canvas>
+        </section>
+
+        <!-- デジタルメーター＆走行データ領域（縦：下 / 横：右） -->
+        <section class="w-full landscape:w-1/2 landscape:h-full flex flex-col justify-end landscape:justify-center gap-2.5 sm:gap-3 shrink-0 landscape:pl-2 landscape:pt-10">
+            
+            <!-- デジタルスピード表示カード（全体は中央配置、数値部分は固定幅・右詰めで桁変化時のブレを防止） -->
+            <div class="bg-cockpit-panel/95 border border-cockpit-border rounded-2xl py-2.5 px-4 sm:py-3.5 flex flex-col items-center justify-center relative shadow-xl overflow-hidden shrink-0">
+                <!-- 装飾ライン -->
+                <div class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-60"></div>
+                
+                <div class="flex items-baseline justify-center gap-2">
+                    <span id="digitalSpeed" class="digital-speed-text font-num font-bold tracking-tight text-white glow-accent">0</span>
+                    <span class="text-sm sm:text-base text-[var(--accent-color)] font-bold tracking-wider">km/h</span>
+                </div>
+                
+                <!-- シミュレーション稼働中のインジケーター -->
+                <div id="simBadge" class="hidden mt-1 px-2.5 py-0.5 rounded bg-[rgba(var(--accent-rgb),0.15)] border border-[rgba(var(--accent-rgb),0.4)] text-[var(--accent-color)] text-[10px] font-semibold tracking-wider uppercase">
+                    シミュレーションモード稼働中
+                </div>
+            </div>
+
+            <!-- 最高速度 (TOP) ＆ 平均速度 (AVG) グリッド -->
+            <div class="grid grid-cols-2 gap-2.5 sm:gap-3 shrink-0">
+                <!-- TOP SPEED -->
+                <div class="bg-cockpit-panel/95 border border-cockpit-border rounded-2xl p-3 flex flex-col justify-between shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold tracking-wider text-slate-400">TOP SPEED</span>
+                        <span class="w-2 h-2 rounded-full bg-[var(--accent-color)]"></span>
+                    </div>
+                    <div class="mt-1 flex items-baseline gap-1.5">
+                        <span id="topSpeedVal" class="font-num font-bold text-2xl sm:text-3xl text-white">0.0</span>
+                        <span class="text-xs text-slate-400 font-medium">km/h</span>
+                    </div>
+                </div>
+
+                <!-- AVG SPEED -->
+                <div class="bg-cockpit-panel/95 border border-cockpit-border rounded-2xl p-3 flex flex-col justify-between shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold tracking-wider text-slate-400">AVG SPEED</span>
+                        <span class="w-2 h-2 rounded-full bg-cockpit-success"></span>
+                    </div>
+                    <div class="mt-1 flex items-baseline gap-1.5">
+                        <span id="avgSpeedVal" class="font-num font-bold text-2xl sm:text-3xl text-white">0.0</span>
+                        <span class="text-xs text-slate-400 font-medium">km/h</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- トリップメーター (TRIP A / B / C 切り替え ＆ 個別リセット) -->
+            <div class="bg-cockpit-panel/95 border border-cockpit-border rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-lg shrink-0">
+                <div class="flex items-center justify-between mb-2">
+                    <!-- TRIP A/B/C タブ切り替えボタン -->
+                    <div class="flex items-center bg-cockpit-bg p-1 rounded-xl border border-cockpit-border gap-1">
+                        <button data-trip="A" class="trip-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-[var(--accent-color)] text-slate-950 shadow">TRIP A</button>
+                        <button data-trip="B" class="trip-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">TRIP B</button>
+                        <button data-trip="C" class="trip-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">TRIP C</button>
+                    </div>
+
+                    <!-- 選択中のトリップ個別リセットボタン -->
+                    <button id="resetCurrentTripBtn" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-cockpit-danger/20 active:scale-95 border border-slate-700 hover:border-cockpit-danger/50 text-xs font-semibold text-slate-300 hover:text-cockpit-danger transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span id="resetTripLabel">A リセット</span>
+                    </button>
+                </div>
+
+                <!-- 選択中トリップの走行距離表示 -->
+                <div class="flex items-baseline justify-between pt-1">
+                    <span class="text-xs font-bold tracking-wider text-slate-400">TRIP DISTANCE</span>
+                    <div class="flex items-baseline gap-1.5">
+                        <span id="tripDistanceVal" class="font-num font-bold text-2xl sm:text-3xl text-[var(--accent-color)]">0.00</span>
+                        <span class="text-xs text-slate-400 font-medium">km</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- 設定モーダル -->
+    <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-cockpit-panel border border-cockpit-border w-full max-w-md rounded-3xl p-5 sm:p-6 shadow-2xl transform transition-all my-auto">
+            <!-- モーダルヘッダー -->
+            <div class="flex items-center justify-between pb-4 border-b border-cockpit-border">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-[rgba(var(--accent-rgb),0.15)] text-[var(--accent-color)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                    </div>
+                    <h2 class="text-lg font-bold text-white tracking-wide">メーター設定</h2>
+                </div>
+                <button id="closeSettingsBtn" class="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 設定コンテンツ -->
+            <div class="py-4 space-y-5">
+                
+                <!-- 1. アナログメーター最大スケール選択 -->
+                <div>
+                    <label class="block text-xs font-bold tracking-wider text-slate-400 mb-2">
+                        アナログメーター最大スケール
+                    </label>
+                    <div class="grid grid-cols-3 gap-2.5">
+                        <button data-scale="140" class="scale-option-btn py-2.5 rounded-xl border font-num font-bold text-base transition-all">
+                            140 <span class="text-[11px] font-sans font-normal block text-slate-400">km/h</span>
+                        </button>
+                        <button data-scale="180" class="scale-option-btn py-2.5 rounded-xl border font-num font-bold text-base transition-all">
+                            180 <span class="text-[11px] font-sans font-normal block text-slate-400">km/h</span>
+                        </button>
+                        <button data-scale="220" class="scale-option-btn py-2.5 rounded-xl border font-num font-bold text-base transition-all">
+                            220 <span class="text-[11px] font-sans font-normal block text-slate-400">km/h</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. テーマカラー（キーカラー）設定 -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold tracking-wider text-slate-400">
+                            テーマカラー（キーカラー）
+                        </label>
+                        <span id="currentColorHex" class="text-[11px] font-num text-slate-400 uppercase">#00D4FF</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-cockpit-bg/80 border border-cockpit-border rounded-2xl p-3">
+                        <!-- プリセットスウォッチ -->
+                        <div class="flex items-center gap-2.5 flex-wrap">
+                            <button type="button" data-color="#00d4ff" aria-label="シアン" class="color-swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition-transform hover:scale-110" style="background-color: #00d4ff;"></button>
+                            <button type="button" data-color="#00e676" aria-label="グリーン" class="color-swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition-transform hover:scale-110" style="background-color: #00e676;"></button>
+                            <button type="button" data-color="#ffab00" aria-label="アンバー" class="color-swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition-transform hover:scale-110" style="background-color: #ffab00;"></button>
+                            <button type="button" data-color="#ff3d57" aria-label="レッド" class="color-swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition-transform hover:scale-110" style="background-color: #ff3d57;"></button>
+                            <button type="button" data-color="#b388ff" aria-label="パープル" class="color-swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition-transform hover:scale-110" style="background-color: #b388ff;"></button>
+                            <button type="button" data-color="#ffffff" aria-label="ホワイト" class="color-swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition-transform hover:scale-110" style="background-color: #ffffff;"></button>
+                        </div>
+
+                        <!-- 自由選択用カラーピッカー -->
+                        <div class="flex items-center gap-2 pl-2 border-l border-cockpit-border">
+                            <label for="customColorPicker" class="text-[11px] text-slate-400 cursor-pointer">自由選択</label>
+                            <input type="color" id="customColorPicker" value="#00d4ff" class="w-8 h-8 rounded-full cursor-pointer" title="好きな色を選択">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 動作確認用シミュレーションモード -->
+                <div class="bg-cockpit-bg/80 border border-cockpit-border rounded-2xl p-3.5">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <span class="text-sm font-bold text-white block">デモ・シミュレーションモード</span>
+                            <span class="text-xs text-slate-400">屋内やPCで針の動きと距離加算をテスト</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="simToggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent-color)]"></div>
+                        </label>
+                    </div>
+
+                    <div id="simControls" class="hidden space-y-3 pt-2 border-t border-cockpit-border/60">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-400">テスト速度設定:</span>
+                            <span id="simSpeedDisplay" class="font-num text-[var(--accent-color)] font-bold">0 km/h</span>
+                        </div>
+                        <input type="range" id="simSpeedSlider" min="0" max="220" value="0" class="w-full">
+                        <div class="flex gap-2 pt-1">
+                            <button id="simAutoDriveBtn" class="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-[var(--accent-color)] border border-[rgba(var(--accent-rgb),0.3)] transition-all">
+                                自動加減速テスト開始
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. データ管理（一括リセット） -->
+                <div>
+                    <label class="block text-xs font-bold tracking-wider text-slate-400 mb-2">
+                        走行データ管理 (LocalStorage保存)
+                    </label>
+                    <button id="resetAllDataBtn" class="w-full py-3 px-4 rounded-xl bg-cockpit-danger/15 hover:bg-cockpit-danger/25 active:scale-[0.99] border border-cockpit-danger/40 text-cockpit-danger font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        全走行データをまとめてリセット
+                    </button>
+                    <p class="text-[11px] text-slate-500 mt-1.5 text-center">
+                        ※ 最高速度・平均速度・TRIP (A/B/C) がすべて0に初期化されます
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- モーダルフッター -->
+            <button id="doneSettingsBtn" class="w-full py-3 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-slate-950 font-bold text-sm tracking-wide transition-opacity shadow-lg">
+                完了
+            </button>
+        </div>
+    </div>
+
+    <!-- カスタム確認ダイアログ（alert/confirm代替） -->
+    <div id="confirmDialog" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="bg-cockpit-panel border border-cockpit-border w-full max-w-sm rounded-3xl p-6 shadow-2xl text-center">
+            <div class="w-12 h-12 rounded-full bg-cockpit-danger/20 text-cockpit-danger flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h3 id="confirmTitle" class="text-lg font-bold text-white mb-2">データのリセット確認</h3>
+            <p id="confirmMessage" class="text-sm text-slate-300 mb-6 leading-relaxed">本当にリセットしますか？</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button id="confirmCancelBtn" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-colors">
+                    キャンセル
+                </button>
+                <button id="confirmOkBtn" class="py-3 rounded-xl bg-cockpit-danger hover:bg-rose-500 text-white font-bold text-sm transition-colors shadow-lg shadow-cockpit-danger/30">
+                    リセット実行
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト通知（メッセージ表示用） -->
+    <div id="toastNotification" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] pointer-events-none opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900/95 border border-[rgba(var(--accent-rgb),0.5)] text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 text-xs font-medium">
+            <span class="w-2 h-2 rounded-full bg-[var(--accent-color)]"></span>
+            <span id="toastText">通知メッセージ</span>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * GPS Speedometer Pro - メインアプリケーションロジック
+         */
+        (() => {
+            // ==========================================
+            // 1. 定数および初期状態定義
+            // ==========================================
+            const STORAGE_KEY = 'gps_speedometer_pro_v1';
+
+            const defaultState = {
+                maxScale: 180,          // アナログメーター最大値 (140, 180, 220)
+                accentColor: '#00d4ff', // キーカラー（デフォルト：シアン）
+                activeTrip: 'A',        // 現在選択中のトリップ ('A', 'B', 'C')
+                topSpeed: 0,            // 最高速度 (km/h)
+                totalDistanceKm: 0,     // 平均速度算出用の累積走行距離 (km)
+                totalMovingSeconds: 0,  // 平均速度算出用の累積移動時間 (秒)
+                trips: {
+                    A: 0,
+                    B: 0,
+                    C: 0
+                }
+            };
+
+            // アプリケーション状態
+            let state = loadState();
+            let currentSpeed = 0;       // ターゲット速度 (km/h)
+            let displaySpeed = 0;       // アナログ針アニメーション用の現在表示速度 (km/h)
+            
+            // GPS計測用変数
+            let watchId = null;
+            let lastPosition = null;
+            let lastTimestamp = null;
+            let wakeLock = null;
+
+            // シミュレーション用変数
+            let isSimMode = false;
+            let isSimAutoDrive = false;
+            let simAutoPhase = 0;
+            let lastSimTick = performance.now();
+
+            // 確認ダイアログコールバック
+            let pendingConfirmCallback = null;
+
+            // ==========================================
+            // 2. DOM要素の取得
+            // ==========================================
+            const canvas = document.getElementById('speedometerCanvas');
+            const ctx = canvas.getContext('2d');
+            const analogContainer = document.getElementById('analogContainer');
+
+            const digitalSpeedEl = document.getElementById('digitalSpeed');
+            const topSpeedValEl = document.getElementById('topSpeedVal');
+            const avgSpeedValEl = document.getElementById('avgSpeedVal');
+            const tripDistanceValEl = document.getElementById('tripDistanceVal');
+            const resetTripLabelEl = document.getElementById('resetTripLabel');
+            const tripTabBtns = document.querySelectorAll('.trip-tab-btn');
+
+            const gpsDotEl = document.getElementById('gpsDot');
+            const gpsStatusTextEl = document.getElementById('gpsStatusText');
+            const gpsAccuracyEl = document.getElementById('gpsAccuracy');
+            const simBadgeEl = document.getElementById('simBadge');
+
+            // モーダル・設定関連
+            const settingsModal = document.getElementById('settingsModal');
+            const openSettingsBtn = document.getElementById('openSettingsBtn');
+            const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+            const doneSettingsBtn = document.getElementById('doneSettingsBtn');
+            const scaleOptionBtns = document.querySelectorAll('.scale-option-btn');
+            const colorSwatchBtns = document.querySelectorAll('.color-swatch-btn');
+            const customColorPicker = document.getElementById('customColorPicker');
+            const currentColorHexEl = document.getElementById('currentColorHex');
+            const resetCurrentTripBtn = document.getElementById('resetCurrentTripBtn');
+            const resetAllDataBtn = document.getElementById('resetAllDataBtn');
+
+            // シミュレーション関連
+            const simToggle = document.getElementById('simToggle');
+            const simControls = document.getElementById('simControls');
+            const simSpeedSlider = document.getElementById('simSpeedSlider');
+            const simSpeedDisplay = document.getElementById('simSpeedDisplay');
+            const simAutoDriveBtn = document.getElementById('simAutoDriveBtn');
+
+            // 確認ダイアログ＆トースト
+            const confirmDialog = document.getElementById('confirmDialog');
+            const confirmTitle = document.getElementById('confirmTitle');
+            const confirmMessage = document.getElementById('confirmMessage');
+            const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+            const confirmOkBtn = document.getElementById('confirmOkBtn');
+            const toastNotification = document.getElementById('toastNotification');
+            const toastText = document.getElementById('toastText');
+
+            // ==========================================
+            // 3. LocalStorage 永続化 & テーマカラー適用処理
+            // ==========================================
+            function loadState() {
+                try {
+                    const saved = localStorage.getItem(STORAGE_KEY);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        return {
+                            ...defaultState,
+                            ...parsed,
+                            trips: { ...defaultState.trips, ...(parsed.trips || {}) }
+                        };
+                    }
+                } catch (e) {
+                    console.error('LocalStorage読み込みエラー:', e);
+                }
+                return JSON.parse(JSON.stringify(defaultState));
+            }
+
+            function saveState() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                } catch (e) {
+                    console.error('LocalStorage保存エラー:', e);
+                }
+            }
+
+            // HEXカラーをRGB値（"r, g, b"）に変換
+            function hexToRgbString(hex) {
+                let cleanHex = (hex || '#00d4ff').replace('#', '');
+                if (cleanHex.length === 3) {
+                    cleanHex = cleanHex.split('').map(c => c + c).join('');
+                }
+                const num = parseInt(cleanHex, 16);
+                if (isNaN(num)) return '0, 212, 255';
+                const r = (num >> 16) & 255;
+                const g = (num >> 8) & 255;
+                const b = num & 255;
+                return `${r}, ${g}, ${b}`;
+            }
+
+            // 選択されたキーカラーをCSS変数およびUI全体に反映
+            function applyAccentColor(hexColor) {
+                const validHex = /^#[0-9A-Fa-f]{6}$/.test(hexColor) ? hexColor.toLowerCase() : '#00d4ff';
+                const rgbStr = hexToRgbString(validHex);
+
+                document.documentElement.style.setProperty('--accent-color', validHex);
+                document.documentElement.style.setProperty('--accent-rgb', rgbStr);
+
+                if (customColorPicker) customColorPicker.value = validHex;
+                if (currentColorHexEl) currentColorHexEl.textContent = validHex.toUpperCase();
+
+                colorSwatchBtns.forEach(btn => {
+                    const swatchColor = btn.dataset.color.toLowerCase();
+                    if (swatchColor === validHex) {
+                        btn.classList.add('border-white', 'scale-110', 'ring-2', 'ring-white/40');
+                        btn.classList.remove('border-transparent');
+                    } else {
+                        btn.classList.remove('border-white', 'scale-110', 'ring-2', 'ring-white/40');
+                        btn.classList.add('border-transparent');
+                    }
+                });
+            }
+
+            // ==========================================
+            // 4. ユーティリティ関数（トースト・確認ダイアログ・距離計算）
+            // ==========================================
+            let toastTimeout = null;
+            function showToast(message) {
+                toastText.textContent = message;
+                toastNotification.classList.remove('opacity-0');
+                toastNotification.classList.add('opacity-100');
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
+                    toastNotification.classList.remove('opacity-100');
+                    toastNotification.classList.add('opacity-0');
+                }, 2500);
+            }
+
+            function openConfirmDialog(title, message, onConfirm) {
+                confirmTitle.textContent = title;
+                confirmMessage.textContent = message;
+                pendingConfirmCallback = onConfirm;
+                confirmDialog.classList.remove('hidden');
+                confirmDialog.classList.add('flex');
+            }
+
+            function closeConfirmDialog() {
+                confirmDialog.classList.add('hidden');
+                confirmDialog.classList.remove('flex');
+                pendingConfirmCallback = null;
+            }
+
+            // 2点間の緯度経度から距離(km)を算出（Haversine公式）
+            function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+                const R = 6371; // 地球の半径 (km)
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a =
+                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+            }
+
+            // 画面スリープ防止 (Wake Lock API)
+            async function requestWakeLock() {
+                try {
+                    if ('wakeLock' in navigator && !wakeLock) {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        wakeLock.addEventListener('release', () => {
+                            wakeLock = null;
+                        });
+                    }
+                } catch (err) {
+                    // バッテリー低下時や非対応ブラウザでは静かに無視
+                }
+            }
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    requestWakeLock();
+                }
+            });
+
+            // ==========================================
+            // 5. 走行データの更新とUI反映
+            // ==========================================
+            function updateSpeedAndMetrics(speedKmh, deltaDistanceKm, deltaSeconds) {
+                // ノイズ除去（極小速度は0km/h扱い）
+                const cleanSpeed = speedKmh < 1.2 ? 0 : speedKmh;
+                currentSpeed = cleanSpeed;
+
+                // 最高速度の更新
+                if (cleanSpeed > state.topSpeed) {
+                    state.topSpeed = cleanSpeed;
+                }
+
+                // 走行距離・移動時間の加算（実際に移動している場合）
+                if (deltaDistanceKm > 0 && cleanSpeed >= 1.2) {
+                    state.trips.A += deltaDistanceKm;
+                    state.trips.B += deltaDistanceKm;
+                    state.trips.C += deltaDistanceKm;
+                    state.totalDistanceKm += deltaDistanceKm;
+                    state.totalMovingSeconds += deltaSeconds;
+                }
+
+                saveState();
+                updateMetricsUI();
+            }
+
+            function updateMetricsUI() {
+                // デジタル速度（整数表示・3桁固定幅の右寄せボックス内で表示）
+                const roundedSpeed = Math.round(currentSpeed);
+                digitalSpeedEl.textContent = roundedSpeed;
+
+                // 最高速度
+                topSpeedValEl.textContent = state.topSpeed.toFixed(1);
+
+                // 平均速度（移動時間がある場合のみ算出）
+                let avgSpeed = 0;
+                if (state.totalMovingSeconds > 0) {
+                    avgSpeed = state.totalDistanceKm / (state.totalMovingSeconds / 3600);
+                }
+                avgSpeedValEl.textContent = avgSpeed.toFixed(1);
+
+                // アクティブなトリップ距離
+                const activeDist = state.trips[state.activeTrip] || 0;
+                tripDistanceValEl.textContent = activeDist.toFixed(2);
+                resetTripLabelEl.textContent = `${state.activeTrip} リセット`;
+
+                // トリップタブの見た目更新
+                tripTabBtns.forEach(btn => {
+                    const tripKey = btn.dataset.trip;
+                    if (tripKey === state.activeTrip) {
+                        btn.classList.add('bg-[var(--accent-color)]', 'text-slate-950', 'shadow');
+                        btn.classList.remove('text-slate-400', 'hover:text-white');
+                    } else {
+                        btn.classList.remove('bg-[var(--accent-color)]', 'text-slate-950', 'shadow');
+                        btn.classList.add('text-slate-400', 'hover:text-white');
+                    }
+                });
+
+                // スケール設定ボタンの見た目更新
+                scaleOptionBtns.forEach(btn => {
+                    const scaleVal = parseInt(btn.dataset.scale, 10);
+                    if (scaleVal === state.maxScale) {
+                        btn.classList.add('border-[var(--accent-color)]', 'bg-[rgba(var(--accent-rgb),0.15)]', 'text-white', 'shadow-lg');
+                        btn.classList.remove('border-cockpit-border', 'bg-cockpit-bg', 'text-slate-400');
+                    } else {
+                        btn.classList.remove('border-[var(--accent-color)]', 'bg-[rgba(var(--accent-rgb),0.15)]', 'text-white', 'shadow-lg');
+                        btn.classList.add('border-cockpit-border', 'bg-cockpit-bg', 'text-slate-400');
+                    }
+                });
+            }
+
+            // ==========================================
+            // 6. Geolocation API (GPS計測ロジック)
+            // ==========================================
+            function startGPSTracking() {
+                if (!('geolocation' in navigator)) {
+                    setGPSStatus('error', 'GPS非対応ブラウザ');
+                    return;
+                }
+
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+
+                setGPSStatus('searching', 'GPS測位中...');
+
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        if (isSimMode) return; // シミュレーション中は実GPSデータを無視
+
+                        const { latitude, longitude, speed, accuracy } = position.coords;
+                        const timestamp = position.timestamp;
+
+                        // ステータス更新
+                        const accText = accuracy ? `±${Math.round(accuracy)}m` : '';
+                        setGPSStatus('active', 'GPS受信中', accText);
+
+                        let calculatedSpeedKmh = 0;
+                        let deltaDistKm = 0;
+                        let deltaSec = 0;
+
+                        if (lastPosition && lastTimestamp) {
+                            deltaSec = (timestamp - lastTimestamp) / 1000;
+                            if (deltaSec > 0 && deltaSec < 30) {
+                                const dist = calculateHaversineKm(
+                                    lastPosition.latitude,
+                                    lastPosition.longitude,
+                                    latitude,
+                                    longitude
+                                );
+                                // 精度誤差によるワープ防止（時速400km以上の異常値は除外）
+                                const impliedSpeed = dist / (deltaSec / 3600);
+                                if (impliedSpeed < 400) {
+                                    deltaDistKm = dist;
+                                }
+                            }
+                        }
+
+                        // coords.speed (m/s) が取得できる場合は優先使用、nullの場合は座標差分から算出
+                        if (speed !== null && speed >= 0) {
+                            calculatedSpeedKmh = speed * 3.6;
+                        } else if (deltaSec > 0) {
+                            calculatedSpeedKmh = deltaDistKm / (deltaSec / 3600);
+                        }
+
+                        lastPosition = { latitude, longitude };
+                        lastTimestamp = timestamp;
+
+                        updateSpeedAndMetrics(calculatedSpeedKmh, deltaDistKm, deltaSec);
+                    },
+                    (error) => {
+                        if (isSimMode) return;
+                        let msg = 'GPSエラー';
+                        if (error.code === error.PERMISSION_DENIED) msg = '位置情報未許可';
+                        else if (error.code === error.POSITION_UNAVAILABLE) msg = 'GPS信号圏外';
+                        else if (error.code === error.TIMEOUT) msg = 'GPSタイムアウト';
+                        setGPSStatus('error', msg);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 10000
+                    }
+                );
+            }
+
+            function setGPSStatus(status, text, accuracyText = '') {
+                gpsStatusTextEl.textContent = text;
+                gpsAccuracyEl.textContent = accuracyText;
+
+                gpsDotEl.className = 'w-2.5 h-2.5 rounded-full';
+                if (status === 'active') {
+                    gpsDotEl.classList.add('bg-cockpit-success', 'shadow-[0_0_8px_#00e676]');
+                } else if (status === 'searching') {
+                    gpsDotEl.classList.add('bg-cockpit-warning', 'animate-pulse');
+                } else if (status === 'sim') {
+                    gpsDotEl.classList.add('bg-[var(--accent-color)]', 'animate-pulse');
+                } else {
+                    gpsDotEl.classList.add('bg-cockpit-danger');
+                }
+            }
+
+            // ==========================================
+            // 7. 高精細アナログスピードメーター描画 (HTML5 Canvas)
+            // ==========================================
+            function resizeCanvas() {
+                const rect = analogContainer.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            function drawAnalogMeter() {
+                const rect = analogContainer.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+
+                ctx.clearRect(0, 0, width, height);
+
+                if (width <= 0 || height <= 0) return;
+
+                const centerX = width / 2;
+                const centerY = height / 2;
+                // パディングを考慮した最大半径
+                const radius = Math.min(width, height) * 0.45;
+
+                // 現在のテーマカラー（HEXおよびRGB）を取得
+                const accentHex = state.accentColor || '#00d4ff';
+                const accentRgb = hexToRgbString(accentHex);
+
+                // 数字用フォント（Arial）およびラベル用ゴシック体フォント定義
+                const numFont = "Arial, 'Helvetica Neue', Helvetica, sans-serif";
+                const gothicFont = "'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+                // 開始角(135度) 〜 終了角(405度 = +45度) -> 合計270度の扇形
+                const startAngle = (135 * Math.PI) / 180;
+                const endAngle = (405 * Math.PI) / 180;
+                const totalAngle = endAngle - startAngle;
+                const maxScale = state.maxScale;
+
+                // 1. 外周ベゼル（メタリックグラデーションリング）
+                const bezelGrad = ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
+                bezelGrad.addColorStop(0, '#2c354d');
+                bezelGrad.addColorStop(0.5, '#121620');
+                bezelGrad.addColorStop(1, '#262f45');
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#0c0f17';
+                ctx.fill();
+                ctx.lineWidth = Math.max(4, radius * 0.035);
+                ctx.strokeStyle = bezelGrad;
+                ctx.stroke();
+
+                // 内側シャドウリング（キーカラー連動）
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius * 0.93, 0, Math.PI * 2);
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = `rgba(${accentRgb}, 0.22)`;
+                ctx.stroke();
+
+                // 2. アクティブ速度アーク（現在速度までの光の軌跡・選択中のキーカラー）
+                const clampedSpeed = Math.min(Math.max(displaySpeed, 0), maxScale);
+                const currentAngle = startAngle + (clampedSpeed / maxScale) * totalAngle;
+
+                if (clampedSpeed > 0.2) {
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius * 0.86, startAngle, currentAngle);
+                    ctx.lineWidth = Math.max(6, radius * 0.045);
+                    ctx.lineCap = 'round';
+                    const arcGrad = ctx.createLinearGradient(centerX - radius, centerY, centerX + radius, centerY);
+                    arcGrad.addColorStop(0, `rgba(${accentRgb}, 0.15)`);
+                    arcGrad.addColorStop(0.7, `rgba(${accentRgb}, 0.65)`);
+                    arcGrad.addColorStop(1, accentHex);
+                    ctx.strokeStyle = arcGrad;
+                    ctx.stroke();
+                    ctx.lineCap = 'butt';
+                }
+
+                // 3. 目盛り（Tick Marks）と数値ラベルの描画（レッドゾーンなし・統一カラー）
+                const majorStep = 20;
+                const minorStep = 5;
+
+                for (let val = 0; val <= maxScale; val += minorStep) {
+                    const ratio = val / maxScale;
+                    const angle = startAngle + ratio * totalAngle;
+                    const isMajor = val % majorStep === 0;
+                    const isMedium = !isMajor && (val % 10 === 0);
+
+                    const outerTickR = radius * 0.88;
+                    const innerTickR = isMajor
+                        ? radius * 0.75
+                        : isMedium
+                            ? radius * 0.80
+                            : radius * 0.83;
+
+                    const x1 = centerX + Math.cos(angle) * innerTickR;
+                    const y1 = centerY + Math.sin(angle) * innerTickR;
+                    const x2 = centerX + Math.cos(angle) * outerTickR;
+                    const y2 = centerY + Math.sin(angle) * outerTickR;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineWidth = isMajor ? Math.max(2.5, radius * 0.018) : Math.max(1.2, radius * 0.009);
+                    
+                    if (val <= clampedSpeed) {
+                        ctx.strokeStyle = isMajor ? accentHex : `rgba(${accentRgb}, 0.85)`;
+                    } else {
+                        ctx.strokeStyle = isMajor ? '#f1f5f9' : '#475569';
+                    }
+                    ctx.stroke();
+
+                    // メジャー目盛りの数値描画（Arialフォント）
+                    if (isMajor) {
+                        const textR = radius * 0.60;
+                        const tx = centerX + Math.cos(angle) * textR;
+                        const ty = centerY + Math.sin(angle) * textR;
+
+                        const fontSize = Math.max(12, Math.round(radius * 0.125));
+                        ctx.font = `700 ${fontSize}px ${numFont}`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = val <= clampedSpeed ? '#ffffff' : '#cbd5e1';
+                        ctx.fillText(val.toString(), tx, ty);
+                    }
+                }
+
+                // 4. メーター中央下部テキスト（単位 km/h のみシンプルに表示）
+                ctx.font = `700 ${Math.max(11, Math.round(radius * 0.095))}px ${gothicFont}`;
+                ctx.fillStyle = '#94a3b8';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('km/h', centerX, centerY + radius * 0.40);
+
+                // 5. 指針（ニードル）の描画（選択中のキーカラー発光）
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(currentAngle);
+
+                ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
+                ctx.shadowBlur = 12;
+
+                // 針本体（キーカラーから先端ホワイトへのグラデーション）
+                const needleLength = radius * 0.82;
+                const tailLength = radius * 0.18;
+                const needleHalfWidth = Math.max(2.5, radius * 0.022);
+
+                ctx.beginPath();
+                ctx.moveTo(-tailLength, -needleHalfWidth * 1.3);
+                ctx.lineTo(needleLength, -0.8);
+                ctx.lineTo(needleLength, 0.8);
+                ctx.lineTo(-tailLength, needleHalfWidth * 1.3);
+                ctx.closePath();
+
+                const needleGrad = ctx.createLinearGradient(-tailLength, 0, needleLength, 0);
+                needleGrad.addColorStop(0, `rgba(${accentRgb}, 0.7)`);
+                needleGrad.addColorStop(0.35, accentHex);
+                needleGrad.addColorStop(1, '#ffffff');
+                ctx.fillStyle = needleGrad;
+                ctx.fill();
+                ctx.restore();
+
+                // 6. センターキャップ（針の軸）
+                const capRadius = radius * 0.11;
+                const capGrad = ctx.createRadialGradient(
+                    centerX - capRadius * 0.3,
+                    centerY - capRadius * 0.3,
+                    capRadius * 0.1,
+                    centerX,
+                    centerY,
+                    capRadius
+                );
+                capGrad.addColorStop(0, '#475569');
+                capGrad.addColorStop(0.6, '#1e293b');
+                capGrad.addColorStop(1, '#090b10');
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, capRadius, 0, Math.PI * 2);
+                ctx.fillStyle = capGrad;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#334155';
+                ctx.stroke();
+
+                // センターキャップ中心のアクセントドット（キーカラー連動）
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, capRadius * 0.32, 0, Math.PI * 2);
+                ctx.fillStyle = accentHex;
+                ctx.fill();
+            }
+
+            // ==========================================
+            // 8. アニメーションループ（滑らかな針補間＆シミュレーション）
+            // ==========================================
+            function animationLoop(now) {
+                const dtSeconds = Math.min((now - lastSimTick) / 1000, 0.5);
+                lastSimTick = now;
+
+                // シミュレーションモードの処理
+                if (isSimMode) {
+                    if (isSimAutoDrive) {
+                        simAutoPhase += dtSeconds * 0.8;
+                        // サイン波を組み合わせて自然な加減速を再現
+                        const wave = (Math.sin(simAutoPhase) + 1) / 2;
+                        const subWave = (Math.sin(simAutoPhase * 2.3) + 1) / 2;
+                        const targetSimSpeed = Math.round((wave * 0.75 + subWave * 0.25) * state.maxScale);
+                        simSpeedSlider.value = targetSimSpeed;
+                        simSpeedDisplay.textContent = `${targetSimSpeed} km/h`;
+                        currentSpeed = targetSimSpeed;
+                    } else {
+                        currentSpeed = parseFloat(simSpeedSlider.value) || 0;
+                    }
+
+                    // シミュレーション中の距離・最高速度・平均速度加算
+                    const simDistKm = currentSpeed * (dtSeconds / 3600);
+                    updateSpeedAndMetrics(currentSpeed, simDistKm, dtSeconds);
+                }
+
+                // 針の角度（表示速度）をターゲット速度へ滑らかに追従（イージング）
+                const diff = currentSpeed - displaySpeed;
+                if (Math.abs(diff) < 0.05) {
+                    displaySpeed = currentSpeed;
+                } else {
+                    displaySpeed += diff * 0.18;
+                }
+
+                drawAnalogMeter();
+                requestAnimationFrame(animationLoop);
+            }
+
+            // ==========================================
+            // 9. イベントリスナー設定
+            // ==========================================
+            // 画面リサイズ・回転時のCanvas再計算
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                drawAnalogMeter();
+            });
+
+            // トリップA/B/C切り替えタブ
+            tripTabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.activeTrip = btn.dataset.trip;
+                    saveState();
+                    updateMetricsUI();
+                });
+            });
+
+            // 現在選択中のトリップ個別リセット
+            resetCurrentTripBtn.addEventListener('click', () => {
+                const targetTrip = state.activeTrip;
+                openConfirmDialog(
+                    `TRIP ${targetTrip} のリセット`,
+                    `TRIP ${targetTrip} の走行距離（${state.trips[targetTrip].toFixed(2)} km）を 0.00 km にリセットしますか？`,
+                    () => {
+                        state.trips[targetTrip] = 0;
+                        saveState();
+                        updateMetricsUI();
+                        showToast(`TRIP ${targetTrip} をリセットしました`);
+                    }
+                );
+            });
+
+            // 設定モーダル開閉
+            function openSettings() {
+                settingsModal.classList.remove('hidden');
+                settingsModal.classList.add('flex');
+                updateMetricsUI();
+            }
+
+            function closeSettings() {
+                settingsModal.classList.add('hidden');
+                settingsModal.classList.remove('flex');
+            }
+
+            openSettingsBtn.addEventListener('click', () => {
+                requestWakeLock();
+                openSettings();
+            });
+            closeSettingsBtn.addEventListener('click', closeSettings);
+            doneSettingsBtn.addEventListener('click', closeSettings);
+
+            // 背景タップでモーダルを閉じる
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) closeSettings();
+            });
+
+            // アナログメーター最大スケール変更 (140 / 180 / 220)
+            scaleOptionBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const newScale = parseInt(btn.dataset.scale, 10);
+                    state.maxScale = newScale;
+                    simSpeedSlider.max = newScale;
+                    if (parseInt(simSpeedSlider.value, 10) > newScale) {
+                        simSpeedSlider.value = newScale;
+                        simSpeedDisplay.textContent = `${newScale} km/h`;
+                    }
+                    saveState();
+                    updateMetricsUI();
+                    drawAnalogMeter();
+                    showToast(`最大スケールを ${newScale} km/h に変更しました`);
+                });
+            });
+
+            // テーマカラー（プリセットスウォッチ）変更
+            colorSwatchBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const chosenColor = btn.dataset.color;
+                    state.accentColor = chosenColor;
+                    saveState();
+                    applyAccentColor(chosenColor);
+                    drawAnalogMeter();
+                });
+            });
+
+            // テーマカラー（自由選択カラーピッカー）変更
+            customColorPicker.addEventListener('input', (e) => {
+                const chosenColor = e.target.value;
+                state.accentColor = chosenColor;
+                saveState();
+                applyAccentColor(chosenColor);
+                drawAnalogMeter();
+            });
+
+            // 全データ一括リセット
+            resetAllDataBtn.addEventListener('click', () => {
+                openConfirmDialog(
+                    '全走行データの一括リセット',
+                    '最高速度（TOP）、平均速度（AVG）、および TRIP A / B / C のすべてのデータを初期化します。よろしいですか？',
+                    () => {
+                        state.topSpeed = 0;
+                        state.totalDistanceKm = 0;
+                        state.totalMovingSeconds = 0;
+                        state.trips = { A: 0, B: 0, C: 0 };
+                        saveState();
+                        updateMetricsUI();
+                        closeSettings();
+                        showToast('すべての走行データをリセットしました');
+                    }
+                );
+            });
+
+            // 確認ダイアログのボタン
+            confirmCancelBtn.addEventListener('click', closeConfirmDialog);
+            confirmOkBtn.addEventListener('click', () => {
+                if (typeof pendingConfirmCallback === 'function') {
+                    pendingConfirmCallback();
+                }
+                closeConfirmDialog();
+            });
+
+            // シミュレーションモード切り替え
+            simToggle.addEventListener('change', (e) => {
+                isSimMode = e.target.checked;
+                if (isSimMode) {
+                    simControls.classList.remove('hidden');
+                    simBadgeEl.classList.remove('hidden');
+                    setGPSStatus('sim', 'シミュレーション中');
+                    simSpeedSlider.max = state.maxScale;
+                } else {
+                    isSimAutoDrive = false;
+                    simAutoDriveBtn.textContent = '自動加減速テスト開始';
+                    simControls.classList.add('hidden');
+                    simBadgeEl.classList.add('hidden');
+                    currentSpeed = 0;
+                    simSpeedSlider.value = 0;
+                    simSpeedDisplay.textContent = '0 km/h';
+                    updateMetricsUI();
+                    startGPSTracking();
+                }
+            });
+
+            simSpeedSlider.addEventListener('input', (e) => {
+                isSimAutoDrive = false;
+                simAutoDriveBtn.textContent = '自動加減速テスト開始';
+                const val = parseInt(e.target.value, 10);
+                simSpeedDisplay.textContent = `${val} km/h`;
+                currentSpeed = val;
+            });
+
+            simAutoDriveBtn.addEventListener('click', () => {
+                isSimAutoDrive = !isSimAutoDrive;
+                if (isSimAutoDrive) {
+                    simAutoDriveBtn.textContent = '自動加減速テスト停止';
+                    simAutoDriveBtn.classList.add('bg-[var(--accent-color)]', 'text-slate-950');
+                    simAutoDriveBtn.classList.remove('bg-slate-800', 'text-[var(--accent-color)]');
+                } else {
+                    simAutoDriveBtn.textContent = '自動加減速テスト開始';
+                    simAutoDriveBtn.classList.remove('bg-[var(--accent-color)]', 'text-slate-950');
+                    simAutoDriveBtn.classList.add('bg-slate-800', 'text-[var(--accent-color)]');
+                }
+            });
+
+            // 初回ユーザー操作時にWake Lockを要求
+            document.body.addEventListener('touchstart', requestWakeLock, { once: true });
+            document.body.addEventListener('click', requestWakeLock, { once: true });
+
+            // ==========================================
+            // 10. 初期化実行
+            // ==========================================
+            window.addEventListener('load', () => {
+                applyAccentColor(state.accentColor);
+                resizeCanvas();
+                updateMetricsUI();
+                startGPSTracking();
+                requestAnimationFrame(animationLoop);
+            });
+        })();
+    </script>
+</body>
+</html>
