@@ -12,6 +12,9 @@
     --accent: #1f6feb;
     --muted: #5b6678;
     --panelH: 160px;
+    --safeB: env(safe-area-inset-bottom, 0px);
+    --safeL: env(safe-area-inset-left, 0px);
+    --safeR: env(safe-area-inset-right, 0px);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -28,13 +31,14 @@
   /* 案内バナー */
   #banner {
     position: fixed; z-index: 1000;
-    top: calc(env(safe-area-inset-top, 0px) + 10px); left: 10px; right: 10px;
+    top: calc(env(safe-area-inset-top, 0px) + 10px); left: calc(var(--safeL) + 10px); right: calc(var(--safeR) + 10px);
     background: var(--ink); color: #fff;
     border-radius: 14px; padding: 10px 16px;
     display: flex; align-items: center; gap: 16px;
     box-shadow: 0 4px 14px rgba(0,0,0,.28);
   }
   #banner[hidden] { display: none; }
+  #bIcon svg { width: 100%; height: 100%; }
   #bIcon { width: 60px; height: 60px; flex: none; color: #fff; display: flex; align-items: center; justify-content: center; }
   #bDist { font-size: 28px; font-weight: 700; line-height: 1.1; }
   #bText { font-size: 15px; opacity: .92; margin-top: 2px; overflow-wrap: anywhere; }
@@ -53,9 +57,33 @@
     flex: none; border: 1px solid #c5ccd8; background: #fff; color: var(--ink);
     border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 13px;
   }
-  #summary { font-size: 15px; font-weight: 700; margin: 3px 0 0; }
-  #status { font-size: 12px; color: var(--muted); min-height: 1.2em; }
-  #status.error { color: #b3261e; }
+  #panel[hidden] { display: none; }
+  /* 状態メッセージ(小さなバルーン) */
+  #status {
+    position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%);
+    bottom: calc(var(--panelH) + 8px);
+    max-width: 72vw; padding: 5px 12px; border-radius: 999px;
+    background: rgba(19,33,58,.92); color: #fff; font-size: 12px; text-align: center;
+  }
+  #status[hidden] { display: none; }
+  #status.error { background: #b3261e; }
+  /* 案内中の操作帯(残り距離・残り時間・終了を小さく別々に) */
+  #hud {
+    position: fixed; z-index: 1000; left: 0; right: 0; bottom: 0;
+    padding: 0 calc(var(--safeR) + 10px) calc(var(--safeB) + 6px) calc(var(--safeL) + 10px);
+    display: flex; justify-content: center; align-items: center; gap: 8px;
+    pointer-events: none;
+  }
+  #hud[hidden] { display: none; }
+  #hud > * { pointer-events: auto; }
+  .chip {
+    background: rgba(19,33,58,.92); color: #fff; border-radius: 999px;
+    padding: 6px 12px; font-size: 13px; font-weight: 700; white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  .chip small { font-size: 10px; font-weight: 600; opacity: .8; margin-right: 4px; }
+  button.chip { border: 0; font: inherit; font-size: 13px; font-weight: 700; }
+  #stopBtn { background: #c62828; }
   .row { display: flex; gap: 8px; margin-top: 8px; }
   .seg { display: flex; flex: 1; border: 1.5px solid var(--ink); border-radius: 10px; overflow: hidden; }
   .seg button {
@@ -74,7 +102,7 @@
 
   /* 右側ボタン群 */
   #tools {
-    position: fixed; z-index: 1000; right: 12px;
+    position: fixed; z-index: 1000; right: calc(var(--safeR) + 12px);
     bottom: calc(var(--panelH) + 34px);
     display: flex; flex-direction: column; gap: 8px;
   }
@@ -92,7 +120,7 @@
 
   #recenter {
     position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%);
-    bottom: calc(var(--panelH) + 14px);
+    bottom: calc(var(--panelH) + 44px);
     border: 0; border-radius: 999px; padding: 12px 18px;
     background: #fff; color: var(--accent); font: inherit; font-weight: 700; font-size: 15px;
     box-shadow: 0 2px 10px rgba(0,0,0,.3);
@@ -101,7 +129,7 @@
 
   #toast {
     position: fixed; z-index: 1100; left: 50%; transform: translateX(-50%);
-    bottom: calc(var(--panelH) + 92px);
+    bottom: calc(var(--panelH) + 100px);
     background: rgba(19,33,58,.92); color: #fff; font-size: 14px;
     padding: 9px 16px; border-radius: 999px; max-width: 80vw; text-align: center;
     pointer-events: none; opacity: 0; transition: opacity .2s;
@@ -110,7 +138,7 @@
 
   /* 距離ゲージ(曲がる地点まで1km未満で表示) */
   #gauge {
-    position: fixed; z-index: 900; left: 12px; width: 24px;
+    position: fixed; z-index: 900; left: calc(var(--safeL) + 12px); width: 24px;
     top: calc(env(safe-area-inset-top, 0px) + 112px);
     bottom: calc(var(--panelH) + 84px);
     background: #19c23a; border: 3px solid #fff; border-radius: 13px;
@@ -122,7 +150,7 @@
 
   /* スピードメーター */
   #speedo {
-    position: fixed; z-index: 1000; left: 12px; bottom: calc(var(--panelH) + 12px);
+    position: fixed; z-index: 1000; left: calc(var(--safeL) + 12px); bottom: calc(var(--panelH) + 12px);
     min-width: 62px; padding: 5px 8px 4px; text-align: center;
     background: rgba(19,33,58,.92); color: #fff; border-radius: 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,.35);
@@ -167,8 +195,31 @@
     font: inherit; font-size: 15px; font-weight: 700; padding: 11px 0;
   }
   .btns button.sub { background: #eef1f6; color: var(--ink); }
+  #menu select {
+    display: block; width: 100%; margin-top: 3px; padding: 10px;
+    border: 1.5px solid #c5ccd8; border-radius: 8px; background: #fff;
+    font: inherit; font-size: 16px; color: var(--ink);
+  }
   #menuMsg { font-size: 13px; min-height: 1.3em; color: #b3261e; }
   #menuMsg.ok { color: #1b7f3a; }
+
+  /* 横画面・高さの低い端末向け */
+  @media (max-height: 520px) {
+    #banner { right: auto; max-width: min(64vw, 560px); padding: 6px 12px; gap: 10px; top: calc(env(safe-area-inset-top, 0px) + 6px); }
+    #bIcon { width: 44px; height: 44px; }
+    #bDist { font-size: 22px; }
+    #bText { font-size: 13px; }
+    #panel { right: auto; left: calc(var(--safeL) + 10px); width: min(440px, 60vw); bottom: 8px; border-radius: 14px; padding: 8px 12px 10px; }
+    #gauge { top: calc(env(safe-area-inset-top, 0px) + 80px); bottom: calc(var(--panelH) + 70px); }
+    #tools { gap: 5px; bottom: calc(var(--panelH) + 28px); }
+    .tool { width: 44px; }
+    .tool.zoom { height: 36px; font-size: 22px; }
+    .tool.labeled { height: 44px; padding: 3px 0; }
+    #needle { width: 20px; height: 20px; }
+    .tool .ico { font-size: 18px; }
+    #speedo { padding: 3px 6px; min-width: 52px; }
+    #speedo b { font-size: 18px; }
+  }
 </style>
 </head>
 <body>
@@ -204,14 +255,20 @@
 </div>
 
 <div id="toast"></div>
+<div id="status" hidden></div>
+
+<div id="hud" hidden>
+  <button class="chip" id="hudMenu" aria-label="メニュー">☰</button>
+  <div class="chip"><small>残り</small><span id="hudDist">--</span></div>
+  <div class="chip"><small>約</small><span id="hudTime">--</span></div>
+  <button class="chip" id="stopBtn">■ 終了</button>
+</div>
 
 <div id="panel">
   <div id="destRow">
     <div id="destName"></div>
     <button id="menuBtn">☰ メニュー</button>
   </div>
-  <div id="summary">ナビを開始すると、ルートを表示します</div>
-  <div id="status"></div>
   <div class="row">
     <div class="seg" id="modeSeg" role="group" aria-label="移動手段">
       <button id="modeCar" aria-pressed="true">🚗 車</button>
@@ -254,6 +311,19 @@
       </div>
     </section>
 
+    <section>
+      <h3>他アプリの音楽との共存(iPhone/Safari向け)</h3>
+      <label>案内を鳴らすときの動き
+        <select id="audioMode">
+          <option value="transient">音楽の音量を下げて重ねる(おすすめ)</option>
+          <option value="transient-solo">音楽を一時停止し、終わったら再開</option>
+          <option value="ambient">音楽はそのまま、案内を重ねる</option>
+          <option value="auto">ブラウザ標準</option>
+        </select>
+      </label>
+      <div class="hint">端末やOSのバージョンで挙動が変わります。実機で試して、音楽が止まらない設定を選んでください。</div>
+    </section>
+
     <div id="menuMsg"></div>
   </div>
 </div>
@@ -277,16 +347,19 @@ const CONFIG = {
   rerouteIntervalMs: 10000,        // 再検索の最短間隔
   followZoom: { driving: 17, foot: 18 },
   // 音声案内
-  voiceStages: [3000, 2000, 700, 300, 130],  // 案内タイミング(曲がり角までの距離m)。最後の値のときは「まもなく」
-  followUpMaxMeters: 300,          // この距離以下の案内では「その先…」も続けて案内
+  voiceStages: [3000, 2000, 1500, 1000, 600, 300],  // 案内タイミング(曲がり角までの距離m)
+  soonMeters: 140,                 // この距離では「まもなく、(方向)です。」
+  followUpMaxMeters: 1000,         // この距離以下の案内では、次の右左折も続けて案内
   followUpNearMeters: 200,         // 次の案内地点まで200m以内なら「その先続いて」
-  finalMeters: 60,                 // この距離で「(方向)です。」の直前案内(効果音なし)
-  finalGuardMs: 3500,              // 直前の案内からこの時間以内なら、60m手前の案内は省略(被り防止)
-  finalMergeMeters: 40,            // 「まもなく」を言った地点が60m+この距離以内なら、60m手前の案内は省略
+  finalMeters: 50,                 // この距離で「(方向)です。」(効果音なし。次の右左折も続ける)
+  finalGuardMs: 3500,              // 直前の案内からこの時間以内なら、50m手前の案内は省略(被り防止)
+  finalMergeMeters: 40,            // 「まもなく」を言った地点が50m+この距離以内なら、50m手前の案内は省略
   mergeMeters: 100,                // 出発直後・通過直後の案内が、近い案内タイミングを兼ねる幅(被り防止)
   distStep: 100,                   // 距離は100m刻みに切り捨てて案内
   gaugeMeters: 1000,               // この距離を切ると画面左にゲージを表示
   gaugeTickMeters: 200,            // ゲージの目盛り間隔
+  routeBearingRange: 50,           // 再検索時、進行方向とこの角度(±度)以内の道路から出発するルートを優先
+  audioSessionType: "transient",   // 音楽との共存(メニューで変更可): transient / transient-solo / ambient / auto
   quietMeters: 3500,               // これ以上案内がなければ「しばらく、道なりです。」
 
   routeColor: "#1fd13f",           // ルート線の色(鮮やかな緑)
@@ -372,6 +445,7 @@ function toast(msg) {
 }
 function setStatus(msg, isError = false) {
   $("status").textContent = msg || "";
+  $("status").hidden = !msg;
   $("status").classList.toggle("error", !!isError);
 }
 
@@ -468,13 +542,16 @@ meEl.innerHTML =
 const meMarker = new maplibregl.Marker({ element: meEl, anchor: "center" });
 let meOnMap = false;
 
-function syncPanelH() { document.documentElement.style.setProperty("--panelH", $("panel").offsetHeight + "px"); }
+function syncPanelH() {
+  // 案内中は大きなパネルを隠し、下端に細い操作帯(約40px)だけを出す
+  document.documentElement.style.setProperty("--panelH", navigating ? "calc(var(--safeB) + 40px)" : $("panel").offsetHeight + "px");
+}
 new ResizeObserver(syncPanelH).observe($("panel"));
 syncPanelH();
 function viewPadding() {
   const bannerH = $("banner").hidden ? 0 : $("banner").offsetHeight + 20;
   const extra = orient === "heading" ? Math.round(window.innerHeight * 0.25) : 0;
-  return { top: bannerH + extra, bottom: $("panel").offsetHeight, left: 0, right: 0 };
+  return { top: bannerH + extra, bottom: navigating ? 48 : $("panel").offsetHeight, left: 0, right: 0 };
 }
 map.setPadding({ top: 0, left: 0, right: 0, bottom: $("panel").offsetHeight });
 
@@ -574,6 +651,7 @@ function setMode(m) {
 $("modeCar").onclick = () => setMode("driving");
 $("modeFoot").onclick = () => setMode("foot");
 $("startBtn").onclick = () => (navigating ? stopNav() : startNav());
+$("stopBtn").onclick = () => stopNav();
 
 $("recenter").onclick = () => { follow = true; $("recenter").hidden = true; tick(); };
 
@@ -625,14 +703,21 @@ function openMenu() {
   $("inName").value = dest.name === CONFIG.destination.name ? "" : dest.name;
   $("inLat").value = dest.lat;
   $("inLng").value = dest.lng;
+  $("audioMode").value = store.get("audioMode", CONFIG.audioSessionType);
   menuMsg("");
   $("menuBack").hidden = false;
 }
 function closeMenu() { $("menuBack").hidden = true; }
 $("menuBtn").onclick = openMenu;
+$("hudMenu").onclick = openMenu;
 $("menuClose").onclick = closeMenu;
+$("audioMode").addEventListener("change", () => {
+  store.set("audioMode", $("audioMode").value);
+  applyAudioSession();
+  menuMsg("設定しました。次の案内から反映されます。", true);
+});
 $("menuBack").addEventListener("click", (e) => { if (e.target === $("menuBack")) closeMenu(); });
-if (!CONFIG.showMenu) $("menuBtn").hidden = true;
+if (!CONFIG.showMenu) { $("menuBtn").hidden = true; $("hudMenu").hidden = true; }
 
 // 「緯度, 経度」をまとめて貼り付けたら、緯度欄・経度欄に分けて入れる
 function bindPaste(latEl, lngEl) {
@@ -689,7 +774,12 @@ $("applySim").onclick = () => {
 /* ---- 効果音(ポーン)と読み上げ。案内同士が重ならないよう順番に再生する ---- */
 let audioCtx = null, speechGen = 0, speechBusy = false, pending = null, lastSpokeAt = 0;
 
+// 他アプリの音楽との関係をOSに伝える(Safari 16.4以降の Audio Session API)
+function applyAudioSession() {
+  try { if (navigator.audioSession) navigator.audioSession.type = store.get("audioMode", CONFIG.audioSessionType); } catch (_) {}
+}
 function ensureAudio() {
+  applyAudioSession();
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
@@ -773,60 +863,77 @@ const VOICE_DIR = {
   "sharp left": "大きく左方向", "sharp right": "大きく右方向",
   "uturn": "引き返す方向",
 };
-function voiceWhat(step) {
-  const m = step.maneuver || {};
-  if (m.type === "arrive") return "目的地";
-  if (m.type === "roundabout" || m.type === "rotary") return "ロータリー";
-  return VOICE_DIR[m.modifier] || null;
+// 高速道路かどうか(OSRMの道路クラス、なければ道路名で判定)
+const HWY_NAME = /高速|自動車道|自動車専用|ハイウェイ|expressway|motorway|freeway|turnpike/i;
+function onHighway(step) {
+  if (!step) return false;
+  if ((step.intersections || []).some((x) => (x.classes || []).includes("motorway"))) return true;
+  return HWY_NAME.test(step.name || "");
 }
-const isGuide = (step) => !!voiceWhat(step);   // 案内する地点(右左折・ロータリー・目的地)か
+// 各ステップの案内文に使う言葉(右左折の方向・ロータリー・高速の入口/出口・目的地)。案内しない地点は null
+function computeLabels(steps) {
+  return steps.map((st, i) => {
+    const m = st.maneuver || {};
+    if (m.type === "arrive") return "目的地";
+    if (m.type === "merge") return null;                       // 合流は案内しない
+    if (m.type === "on ramp" && (onHighway(st) || onHighway(steps[i + 1])) && !onHighway(steps[i - 1])) return "高速道路入口";
+    if (m.type === "off ramp" && onHighway(steps[i - 1])) return "高速道路出口";
+    if (m.type === "roundabout" || m.type === "rotary") return "ロータリー";
+    return VOICE_DIR[m.modifier] || null;
+  });
+}
+const isGuide = (i) => !!route.labels[i];       // 案内する地点か
 
 // along より先にある、最初の案内地点
 function nextGuideIndex(along) {
   for (let i = 1; i < route.steps.length; i++) {
-    if (route.stepStarts[i] > along + 1 && isGuide(route.steps[i])) return i;
+    if (route.stepStarts[i] > along + 1 && isGuide(i)) return i;
   }
   return -1;
 }
 // 「その先…」の案内文(次の案内地点がなければ空)
 function followUpText(g) {
   let h = -1;
-  for (let i = g + 1; i < route.steps.length; i++) if (isGuide(route.steps[i])) { h = i; break; }
+  for (let i = g + 1; i < route.steps.length; i++) if (isGuide(i)) { h = i; break; }
   if (h < 0) return "";
-  const what = voiceWhat(route.steps[h]);
+  const what = route.labels[h];
   const gap = route.stepStarts[h] - route.stepStarts[g];
   return gap <= CONFIG.followUpNearMeters
     ? `その先続いて、${what}です。`
     : `その先、およそ${spokenDist(gap)}で、${what}です。`;
 }
+const guideStages = () => [...CONFIG.voiceStages, CONFIG.soonMeters, CONFIG.finalMeters];
+
 function announceGuide(g, dist, lvl, kind, along) {
-  // kind: "immediate"(出発・通過・再検索の直後) / "stage"(案内タイミング) / "final"(60m手前)
-  const what = voiceWhat(route.steps[g]);
-  const stages = CONFIG.voiceStages;
-  if (kind === "final") {
-    if (Date.now() - lastSpokeAt < CONFIG.finalGuardMs) return;     // 直前の案内に近すぎるときは省略
-    lastSpokeAlong = along;
-    speak(`${what}です。`, { maxWait: 3000 });                       // 効果音なし。再生中の案内は切らずに順番を待つ
-    return;
-  }
+  // kind: "immediate"(出発・通過・再検索の直後) / "stage"(案内タイミング)
+  const what = route.labels[g];
+  const all = guideStages();
+  const finalIdx = all.length - 1;
+  const isFinal = kind === "stage" && lvl === finalIdx;          // 50m手前の直前案内
+  if (isFinal && Date.now() - lastSpokeAt < CONFIG.finalGuardMs) return;   // 直前の案内に近すぎるときは省略
   lastSpokeAlong = along;
   let text;
   if (kind === "immediate" && dist >= CONFIG.quietMeters) {
     text = "しばらく、道なりです。";
   } else {
-    let d = dist;
-    if (kind === "stage" && stages[lvl] - dist <= CONFIG.distStep) d = stages[lvl];   // 区切りの距離で案内
-    text = dist <= stages[stages.length - 1]
-      ? `まもなく、${what}です。`
-      : `およそ${spokenDist(d)}先、${what}です。`;
-    const followIdx = stages.findIndex((s) => s <= CONFIG.followUpMaxMeters);
-    if (lvl >= followIdx) text += followUpText(g);
+    if (isFinal) {
+      text = `${what}です。`;
+    } else if (dist <= CONFIG.soonMeters) {
+      text = `まもなく、${what}です。`;
+    } else {
+      let d = dist;
+      if (kind === "stage" && all[lvl] - dist <= CONFIG.distStep) d = all[lvl];   // 区切りの距離で案内
+      text = `およそ${spokenDist(d)}先、${what}です。`;
+    }
+    const followIdx = all.findIndex((s) => s <= CONFIG.followUpMaxMeters);
+    if (lvl >= followIdx) text += followUpText(g);                // 1km以下は次の右左折も続ける
   }
-  speak(text, { chime: true });
+  // 50m手前の直前案内だけは効果音なし。再生中の案内は切らず、順番を待つ
+  speak(text, isFinal ? { maxWait: 3000 } : { chime: true });
 }
 function guideVoice(g, along) {
   const dist = Math.max(0, route.stepStarts[g] - along);
-  const all = [...CONFIG.voiceStages, CONFIG.finalMeters];
+  const all = guideStages();
   const finalIdx = all.length - 1;
   // dist が入っている最も近いタイミング。merge=true のときは少し手前でも「入っている」とみなす
   const levelAt = (merge) => {
@@ -849,7 +956,7 @@ function guideVoice(g, along) {
   const lvl = levelAt(false);
   if (lvl > guide.level) {
     guide.level = lvl;
-    announceGuide(g, dist, lvl, lvl === finalIdx ? "final" : "stage", along);
+    announceGuide(g, dist, lvl, "stage", along);
   } else if (dist > all[0] && along - lastSpokeAlong >= CONFIG.quietMeters) {
     lastSpokeAlong = along;
     speak("しばらく、道なりです。", { chime: true });
@@ -930,7 +1037,7 @@ const MOD_TEXT = {
   "left": "左折", "right": "右折", "slight left": "斜め左方向", "slight right": "斜め右方向",
   "sharp left": "鋭く左折", "sharp right": "鋭く右折", "straight": "直進", "uturn": "Uターン",
 };
-function describeStep(step) {
+function describeStep(step, label) {
   const m = step.maneuver || {}, mod = m.modifier;
   const name = step.name ? `(${step.name})` : "";
   let text, key = mod || "straight";
@@ -947,6 +1054,7 @@ function describeStep(step) {
     case "continue": text = mod && mod !== "straight" ? MOD_TEXT[mod] : "直進"; break;
     default: text = MOD_TEXT[mod] || "直進";
   }
+  if (label === "高速道路入口" || label === "高速道路出口") return { key, text: label + name };
   return { key, text: text + (m.type === "arrive" ? "" : name) };
 }
 
@@ -965,17 +1073,35 @@ function snapToRoute(lat, lng) {
   return best;
 }
 
+// ルート検索に渡す進行方向(動いているときだけ)
+function routingHeading() {
+  if (gpsHdg == null || Date.now() - lastMoveAt > 15000) return null;
+  return Math.round(gpsHdg) % 360;
+}
 async function fetchRoute(force = false) {
   if (!lastPos || routing) return;
   const now = Date.now();
   if (!force && now - lastRerouteAt < CONFIG.rerouteIntervalMs) return;
   routing = true; lastRerouteAt = now;
   setStatus("ルートを検索しています…");
-  const url = `${CONFIG.routers[mode]}${lastPos.lng},${lastPos.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson&steps=true&alternatives=false`;
+  const base = `${CONFIG.routers[mode]}${lastPos.lng},${lastPos.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson&steps=true&alternatives=false`;
   try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
+    // 走行中は「いま向いている方向」へ進み始めるルートを優先する(Uターンを避ける)
+    const hdg = routingHeading();
+    let data = null;
+    if (hdg !== null) {
+      const rad = Math.max(60, Math.round((lastPos.acc || 0) * 2));
+      try {
+        const res = await fetch(`${base}&bearings=${hdg},${CONFIG.routeBearingRange};&radiuses=${rad};unlimited`);
+        if (res.ok) data = await res.json();
+      } catch (_) {}
+      if (!data || data.code !== "Ok" || !data.routes || !data.routes.length) data = null;
+    }
+    if (!data) {                                    // 向きを指定して見つからなければ、指定なしで検索
+      const res = await fetch(base);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      data = await res.json();
+    }
     if (data.code !== "Ok" || !data.routes || !data.routes.length) throw new Error(data.code || "ルートなし");
     const r = data.routes[0];
     const coords = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
@@ -986,7 +1112,7 @@ async function fetchRoute(force = false) {
     const scale = total / (r.distance || total);
     let acc = 0;
     const stepStarts = steps.map((s) => { const st = acc * scale; acc += s.distance; return st; });
-    route = { coords, cum, total, duration: r.duration, steps, stepStarts };
+    route = { coords, cum, total, duration: r.duration, steps, stepStarts, labels: computeLabels(steps) };
     routeSeq++; offCount = 0;
     if (mapReady) map.getSource("route").setData({ type: "Feature", geometry: r.geometry });
     setStatus("");
@@ -1009,7 +1135,8 @@ function updateGuidance() {
     $("bIcon").innerHTML = iconSvg("arrive");
     $("bDist").textContent = "到着しました";
     $("bText").textContent = dest.name;
-    $("summary").textContent = "目的地に到着";
+    $("hudDist").textContent = "0 m";
+    $("hudTime").textContent = "到着";
     renderGauge(null);
     if (!arrivedSpoken) { arrivedSpoken = true; speak("目的地に到着しました", { chime: true }); }
     return;
@@ -1032,12 +1159,13 @@ function updateGuidance() {
   offCount = 0;
 
   const remain = Math.max(0, route.total - snap.along);
-  $("summary").textContent = `残り ${fmtDist(remain)} ・ 約${fmtTime(route.duration * (remain / route.total))}`;
+  $("hudDist").textContent = fmtDist(remain);
+  $("hudTime").textContent = fmtTime(route.duration * (remain / route.total));
 
   let g = nextGuideIndex(snap.along);
   if (g === -1) g = route.steps.length - 1;
   const dToStep = Math.max(0, route.stepStarts[g] - snap.along);
-  const next = describeStep(route.steps[g]);
+  const next = describeStep(route.steps[g], route.labels[g]);
   renderGauge(dToStep);
   $("banner").hidden = false;
   $("bIcon").innerHTML = iconSvg(next.key);
@@ -1139,7 +1267,8 @@ function startNav() {
   $("startBtn").textContent = "案内を終了";
   $("startBtn").classList.add("running");
   $("modeSeg").hidden = true;
-  $("speedo").hidden = false;            // 案内中は車/徒歩の切り替えを隠す
+  $("speedo").hidden = false;
+  $("panel").hidden = true; $("hud").hidden = false; syncPanelH();            // 案内中は車/徒歩の切り替えを隠す
 
   ensureAudio();
   speak("案内を開始します");            // iOSではボタン操作の中で音声を初期化する必要がある
@@ -1173,8 +1302,9 @@ function stopNav() {
   $("startBtn").classList.remove("running");
   $("modeSeg").hidden = false;
   $("speedo").hidden = true; renderGauge(null); dispSpeed = null; lastFix = null;
+  $("panel").hidden = false; $("hud").hidden = true; syncPanelH();
   guide = { key: null, level: -1 };
-  $("summary").textContent = "ナビを開始すると、ルートを表示します";
+  $("hudDist").textContent = "--"; $("hudTime").textContent = "--";
   setStatus("");
   map.setPadding({ top: 0, left: 0, right: 0, bottom: $("panel").offsetHeight });
   map.easeTo({ center: [dest.lng, dest.lat], zoom: 16, bearing: 0, duration: 500 });
